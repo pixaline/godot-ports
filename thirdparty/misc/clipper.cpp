@@ -42,14 +42,13 @@
 #include <cmath>
 #include <vector>
 #include <algorithm>
-#include <stdexcept>
 #include <cstring>
 #include <cstdlib>
 #include <ostream>
 #include <functional>
 
 //Explicitly disables exceptions handling for target platform
-//#define CLIPPER_NOEXCEPTION
+#define CLIPPER_NOEXCEPTION
 
 #define CLIPPER_THROW(exception) std::abort()
 #define CLIPPER_TRY if(true)
@@ -4629,33 +4628,5 @@ void OpenPathsFromPolyTree(PolyTree& polytree, Paths& paths)
     if (polytree.Childs[i]->IsOpen())
       paths.push_back(polytree.Childs[i]->Contour);
 }
-//------------------------------------------------------------------------------
-
-std::ostream& operator <<(std::ostream &s, const IntPoint &p)
-{
-  s << "(" << p.X << "," << p.Y << ")";
-  return s;
-}
-//------------------------------------------------------------------------------
-
-std::ostream& operator <<(std::ostream &s, const Path &p)
-{
-  if (p.empty()) return s;
-  Path::size_type last = p.size() -1;
-  for (Path::size_type i = 0; i < last; i++)
-    s << "(" << p[i].X << "," << p[i].Y << "), ";
-  s << "(" << p[last].X << "," << p[last].Y << ")\n";
-  return s;
-}
-//------------------------------------------------------------------------------
-
-std::ostream& operator <<(std::ostream &s, const Paths &p)
-{
-  for (Paths::size_type i = 0; i < p.size(); i++)
-    s << p[i];
-  s << "\n";
-  return s;
-}
-//------------------------------------------------------------------------------
 
 } //ClipperLib namespace

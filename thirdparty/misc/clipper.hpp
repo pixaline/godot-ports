@@ -53,9 +53,8 @@
 #include <list>
 #include <set>
 #include <stdexcept>
-#include <cstring>
 #include <cstdlib>
-#include <ostream>
+#include <string.h>
 #include <functional>
 #include <queue>
 
@@ -108,10 +107,6 @@ typedef std::vector< Path > Paths;
 
 inline Path& operator <<(Path& poly, const IntPoint& p) {poly.push_back(p); return poly;}
 inline Paths& operator <<(Paths& polys, const Path& p) {polys.push_back(p); return polys;}
-
-std::ostream& operator <<(std::ostream &s, const IntPoint &p);
-std::ostream& operator <<(std::ostream &s, const Path &p);
-std::ostream& operator <<(std::ostream &s, const Paths &p);
 
 struct DoublePoint
 {
@@ -391,11 +386,15 @@ private:
 class clipperException : public std::exception
 {
   public:
-    clipperException(const char* description): m_descr(description) {}
-    virtual ~clipperException() throw() {}
-    virtual const char* what() const throw() {return m_descr.c_str();}
+    clipperException(const char* description) {
+		size_t len = strlen(description);
+		m_descr = new char[len + 1];
+		strcpy(m_descr, description);
+	}
+    virtual ~clipperException() throw() { delete [] m_descr;}
+    virtual const char* what() const throw() {return m_descr;}
   private:
-    std::string m_descr;
+    char * m_descr;
 };
 //------------------------------------------------------------------------------
 

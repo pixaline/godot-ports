@@ -250,14 +250,17 @@ void JoypadOSX::_device_added(IOReturn p_res, IOHIDDeviceRef p_device) {
 	joypad new_joypad;
 	if (is_joypad(p_device)) {
 		configure_joypad(p_device, &new_joypad);
-#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
+#if MAC_OS_X_VERSION_MIN_REQUIRED == 1060
+		
 		if (IOHIDDeviceGetService) {
 #endif
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
 			const io_service_t ioservice = IOHIDDeviceGetService(p_device);
 			if ((ioservice) && (FFIsForceFeedback(ioservice) == FF_OK) && new_joypad.config_force_feedback(ioservice)) {
 				new_joypad.ffservice = ioservice;
 			}
-#if MAC_OS_X_VERSION_MIN_REQUIRED < 1060
+#endif
+#if MAC_OS_X_VERSION_MIN_REQUIRED == 1060
 		}
 #endif
 		device_list.push_back(new_joypad);
@@ -538,7 +541,7 @@ bool JoypadOSX::have_device(IOHIDDeviceRef p_device) const {
 	}
 	return false;
 }
-
+/*
 static CFDictionaryRef create_match_dictionary(const UInt32 page, const UInt32 usage, int *okay) {
 	CFDictionaryRef retval = NULL;
 	CFNumberRef pageNumRef = CFNumberCreate(kCFAllocatorDefault, kCFNumberIntType, &page);
@@ -563,6 +566,7 @@ static CFDictionaryRef create_match_dictionary(const UInt32 page, const UInt32 u
 
 	return retval;
 }
+*/
 
 void JoypadOSX::config_hid_manager(CFArrayRef p_matching_array) const {
 	CFRunLoopRef runloop = CFRunLoopGetCurrent();
@@ -583,6 +587,7 @@ JoypadOSX::JoypadOSX() {
 	self = this;
 	input = (InputDefault *)Input::get_singleton();
 
+/*
 	int okay = 1;
 	const void *vals[] = {
 		(void *)create_match_dictionary(kHIDPage_GenericDesktop, kHIDUsage_GD_Joystick, &okay),
@@ -605,6 +610,7 @@ JoypadOSX::JoypadOSX() {
 		}
 		CFRelease(array);
 	}
+*/
 }
 
 JoypadOSX::~JoypadOSX() {

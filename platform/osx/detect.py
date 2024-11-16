@@ -22,6 +22,7 @@ def get_opts():
     from SCons.Variables import BoolVariable, EnumVariable
 
     return [
+        ("osx_version", "OS X minimum target version"),
         ("osxcross_sdk", "OSXCross SDK version", "darwin14"),
         ("MACOS_SDK_PATH", "Path to the macOS SDK", ""),
         EnumVariable("macports_clang", "Build using Clang from MacPorts", "no", ("no", "5.0", "devel")),
@@ -46,7 +47,7 @@ def configure(env):
             env.Prepend(CCFLAGS=["-O3"])
         elif env["optimize"] == "size":  # optimize for size
             env.Prepend(CCFLAGS=["-Os"])
-        if env["arch"] != "arm64":
+        if env["arch"] == "i386":
             env.Prepend(CCFLAGS=["-msse2"])
 
         if env["debug_symbols"]:
@@ -69,7 +70,7 @@ def configure(env):
 
     # Mac OS X no longer runs on 32-bit since 10.7 which is unsupported since 2014
     # As such, we only support 64-bit
-    env["bits"] = "64"
+    #env["bits"] = "64"
 
     ## Compiler configuration
 
@@ -77,16 +78,38 @@ def configure(env):
     if "OSXCROSS_ROOT" in os.environ:
         env["osxcross"] = True
 
+    osxver = "10.7"
+    if "osx_version" in env:
+        osxver = env["osx_version"]
+    
     if env["arch"] == "arm64":
         print("Building for macOS 11.0+, platform arm64.")
         env.Append(ASFLAGS=["-arch", "arm64", "-mmacosx-version-min=11.0"])
         env.Append(CCFLAGS=["-arch", "arm64", "-mmacosx-version-min=11.0"])
         env.Append(LINKFLAGS=["-arch", "arm64", "-mmacosx-version-min=11.0"])
     else:
-        print("Building for macOS 10.13+, platform x86-64.")
-        env.Append(ASFLAGS=["-arch", "x86_64", "-mmacosx-version-min=10.13"])
-        env.Append(CCFLAGS=["-arch", "x86_64", "-mmacosx-version-min=10.13"])
-        env.Append(LINKFLAGS=["-arch", "x86_64", "-mmacosx-version-min=10.13"])
+        print("Building for macOS " + osxver + "+, platform: " + env["arch"] + ".")
+        env.Append(ASFLAGS=["-mmacosx-version-min=" + osxver])
+        env.Append(CCFLAGS=["-mmacosx-version-min=" + osxver])
+        env.Append(LINKFLAGS=["-mmacosx-version-min=" + osxver])
+		
+        #if float(osxver) >= 10.6:
+            #env.Append(CPPDEFINES=["MAC_OS_X_10_6_FEATURES"])
+        #if float(osxver) >= 10.7:
+            #env.Append(CPPDEFINES=["MAC_OS_X_10_7_FEATURES"])
+
+        if env["arch"] == "x86_64":
+            env.Append(ASFLAGS=["-arch", "x86_64"])
+            env.Append(CCFLAGS=["-arch", "x86_64"])
+            env.Append(LINKFLAGS=["-arch", "x86_64"])
+        elif env["arch"] == "i386":
+            env.Append(ASFLAGS=["-arch", "i386"])
+            env.Append(CCFLAGS=["-arch", "i386"])
+            env.Append(LINKFLAGS=["-arch", "i386"])
+        elif env["arch"] == "ppc":
+            env.Append(ASFLAGS=["-arch", "ppc"])
+            env.Append(CCFLAGS=["-arch", "ppc"])
+            env.Append(LINKFLAGS=["-arch", "ppc"])
 
     cc_version = get_compiler_version(env) or [-1, -1]
     vanilla = is_vanilla_clang(env)
@@ -117,13 +140,19 @@ def configure(env):
         root = os.environ.get("OSXCROSS_ROOT", 0)
         if env["arch"] == "arm64":
             basecmd = root + "/target/bin/arm64-apple-" + env["osxcross_sdk"] + "-"
-        else:
+        elif env["arch"] == "ppc":
+            basecmd = root + "/target/bin/powerpc-apple-" + env["osxcross_sdk"] + "-"
+        elif env["arch"] == "x86_64":
             basecmd = root + "/target/bin/x86_64-apple-" + env["osxcross_sdk"] + "-"
+        elif env["arch"] == "i386":
+            basecmd = root + "/target/bin/powerpc-apple-" + env["osxcross_sdk"] + "-"
 
         ccache_path = os.environ.get("CCACHE")
         if ccache_path is None:
-            env["CC"] = basecmd + "cc"
-            env["CXX"] = basecmd + "c++"
+            # apple = clang / clang++-gstdc++
+            # compiled = c / g++
+            env["CC"] = basecmd + "gcc"
+            env["CXX"] = basecmd + "g++" 
         else:
             # there aren't any ccache wrappers available for OS X cross-compile,
             # to enable caching we need to prepend the path to the ccache binary
@@ -133,6 +162,39 @@ def configure(env):
         env["RANLIB"] = basecmd + "ranlib"
         env["AS"] = basecmd + "as"
         env.Append(CPPDEFINES=["__MACPORTS__"])  # hack to fix libvpx MM256_BROADCASTSI128_SI256 define
+
+		# Find the correct LD
+        env.Append(CCFLAGS=["-B" + basecmd])
+        env.Append(LINKFLAGS=["-B" + basecmd])
+		
+        if env["bits"] == "64":
+            env.Append(CCFLAGS=["-ld64"])
+			
+        env.Append(CCFLAGS=["-fPIC"])
+		
+		# Statically link that
+        env.Append(CCFLAGS=["-fobjc-exceptions"])
+        env.Append(CCFLAGS=["-fstrict-aliasing"])
+        #env.Append(CPPFLAGS=["-mlongcall"])
+		
+        #env.Append(CCFLAGS=["-static-libstdc++"])
+        #env.Append(CCFLAGS=["-foc-use-gcc-libstdc++"])
+        #env.Append(CCFLAGS=["-fno-toplevel-reorder"])
+		
+        env.Append(CCFLAGS=["-ffunction-sections"])
+        env.Append(CCFLAGS=["-fdata-sections"])
+        
+        # Force the Linker to work in our sdk root (it might've been compiled to another path)
+        env.Append(LINKFLAGS=["-Wl,-syslibroot "+root+"/target/SDK/MacOSX10.5.sdk"])
+        
+        if env["arch"] == "ppc":
+            #env.Append(CPPDEFINES=["NO_SAFE_CAST"])
+            #env.Append(CXXFLAGS=["-fno-rtti"])
+            pass
+		
+        env.Append(CPPDEFINES=["GLES_OVER_GL"])
+
+
 
     # LTO
 
@@ -204,17 +266,24 @@ def configure(env):
             "CoreAudio",
             "-framework",
             "CoreMIDI",
-            "-lz",
             "-framework",
             "IOKit",
             "-framework",
-            "ForceFeedback",
-            "-framework",
-            "AVFoundation",
-            "-framework",
-            "CoreMedia",
-            "-framework",
-            "CoreVideo",
+            "ForceFeedback"
         ]
     )
+	
+    if float(osxver) >= 10.6:
+        env.Append(
+            LINKFLAGS=[
+                "-weak_framework",
+                "AVFoundation",
+                "-weak_framework",
+                "CoreMedia",
+                "-weak_framework",
+                "CoreVideo"
+            ]
+        )
+	
+	
     env.Append(LIBS=["pthread"])

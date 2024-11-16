@@ -54,7 +54,7 @@
 #include "main/main_timer_sync.h"
 #include "main/performance.h"
 #include "main/splash.gen.h"
-#include "main/tests/test_main.h"
+//#include "main/tests/test_main.h"
 #include "modules/register_module_types.h"
 #include "platform/register_platform_apis.h"
 #include "scene/debugger/script_debugger_remote.h"
@@ -378,6 +378,8 @@ void Main::print_help(const char *p_binary) {
 	OS::get_singleton()->print("  --gdnative-generate-json-api     Generate JSON dump of the Godot API for GDNative bindings.\n");
 #endif
 	OS::get_singleton()->print("  --test <test>                    Run a unit test (");
+
+#ifdef TEST_MAIN_H
 	const char **test_names = tests_get_names();
 	const char *comma = "";
 	while (*test_names) {
@@ -385,6 +387,7 @@ void Main::print_help(const char *p_binary) {
 		test_names++;
 		comma = ", ";
 	}
+#endif
 	OS::get_singleton()->print(").\n");
 #endif
 }
@@ -1626,7 +1629,7 @@ Error Main::setup2(Thread::ID p_main_tid_override) {
 
 	MAIN_PRINT("Main: Load Modules, Physics, Drivers, Scripts");
 
-	register_platform_apis();
+	//register_platform_apis();
 	register_module_types();
 
 	// Theme needs modules to be initialized so that sub-resources can be loaded.
@@ -1867,12 +1870,14 @@ bool Main::start() {
 	String main_loop_type = GLOBAL_DEF("application/run/main_loop_type", "SceneTree");
 
 	if (test != "") {
-#ifdef TOOLS_ENABLED
+#ifdef TOOLS_ENABLED 
+#ifdef TEST_MAIN_H
 		main_loop = test_main(test, args);
 
 		if (!main_loop) {
 			return false;
 		}
+#endif
 #endif
 
 	} else if (script != "") {
@@ -2598,7 +2603,7 @@ void Main::cleanup(bool p_force) {
 
 	unregister_driver_types();
 	unregister_module_types();
-	unregister_platform_apis();
+	//unregister_platform_apis();
 	unregister_scene_types();
 	unregister_server_types();
 

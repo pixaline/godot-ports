@@ -54,7 +54,11 @@
 #include <mach-o/getsect.h>
 
 static uint64_t load_address() {
+#if defined(__x86_64) || defined(__x86_64__) || defined(__amd64__)
 	const struct segment_command_64 *cmd = getsegbyname("__TEXT");
+#else
+	const struct segment_command *cmd = getsegbyname("__TEXT");
+#endif
 	char full_path[1024];
 	uint32_t size = sizeof(full_path);
 

@@ -71,6 +71,7 @@
 #define CAN_DEBUG
 #endif
 
+/*
 #if !defined(GLES_OVER_GL) && defined(CAN_DEBUG)
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
@@ -79,6 +80,7 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #endif
+*/
 
 #if defined(MINGW_ENABLED) || defined(_MSC_VER)
 #define strcpy strcpy_s
@@ -231,21 +233,24 @@ void RasterizerGLES2::initialize() {
 	// For debugging
 #ifdef CAN_DEBUG
 #ifdef GLES_OVER_GL
-	if (OS::get_singleton()->is_stdout_verbose() && GLAD_GL_ARB_debug_output) {
+	//if (OS::get_singleton()->is_stdout_verbose() && GLAD_GL_ARB_debug_output) {
+		/*
 		glDebugMessageControlARB(_EXT_DEBUG_SOURCE_API_ARB, _EXT_DEBUG_TYPE_ERROR_ARB, _EXT_DEBUG_SEVERITY_HIGH_ARB, 0, nullptr, GL_TRUE);
 		glDebugMessageControlARB(_EXT_DEBUG_SOURCE_API_ARB, _EXT_DEBUG_TYPE_DEPRECATED_BEHAVIOR_ARB, _EXT_DEBUG_SEVERITY_HIGH_ARB, 0, nullptr, GL_TRUE);
 		glDebugMessageControlARB(_EXT_DEBUG_SOURCE_API_ARB, _EXT_DEBUG_TYPE_UNDEFINED_BEHAVIOR_ARB, _EXT_DEBUG_SEVERITY_HIGH_ARB, 0, nullptr, GL_TRUE);
 		glDebugMessageControlARB(_EXT_DEBUG_SOURCE_API_ARB, _EXT_DEBUG_TYPE_PORTABILITY_ARB, _EXT_DEBUG_SEVERITY_HIGH_ARB, 0, nullptr, GL_TRUE);
 		glDebugMessageControlARB(_EXT_DEBUG_SOURCE_API_ARB, _EXT_DEBUG_TYPE_PERFORMANCE_ARB, _EXT_DEBUG_SEVERITY_HIGH_ARB, 0, nullptr, GL_TRUE);
 		glDebugMessageControlARB(_EXT_DEBUG_SOURCE_API_ARB, _EXT_DEBUG_TYPE_OTHER_ARB, _EXT_DEBUG_SEVERITY_HIGH_ARB, 0, nullptr, GL_TRUE);
+		*/
 		/* glDebugMessageInsertARB(
 			GL_DEBUG_SOURCE_API_ARB,
 			GL_DEBUG_TYPE_OTHER_ARB, 1,
 			GL_DEBUG_SEVERITY_HIGH_ARB, 5, "hello");
 		*/
-	}
+	//}
 #else
 	if (OS::get_singleton()->is_stdout_verbose()) {
+#ifdef EGL_VERSION_1_0 
 		DebugMessageCallbackARB callback = (DebugMessageCallbackARB)eglGetProcAddress("glDebugMessageCallback");
 		if (!callback) {
 			callback = (DebugMessageCallbackARB)eglGetProcAddress("glDebugMessageCallbackKHR");
@@ -257,6 +262,7 @@ void RasterizerGLES2::initialize() {
 			callback(_gl_debug_print, NULL);
 			glEnable(_EXT_DEBUG_OUTPUT);
 		}
+#endif // EGL_VERSION_1_0
 	}
 #endif // GLES_OVER_GL
 #endif // CAN_DEBUG

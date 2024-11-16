@@ -47,13 +47,18 @@ String DirAccessOSX::fix_unicode_name(const char *p_name) const {
 }
 
 int DirAccessOSX::get_drive_count() {
+#ifdef MAC_OS_X_VERSION_10_6_FEATURES
 	NSArray *res_keys = [NSArray arrayWithObjects:NSURLVolumeURLKey, NSURLIsSystemImmutableKey, nil];
 	NSArray *vols = [[NSFileManager defaultManager] mountedVolumeURLsIncludingResourceValuesForKeys:res_keys options:NSVolumeEnumerationSkipHiddenVolumes];
-
 	return [vols count];
+#else
+	NSArray *vols = [[NSWorkspace sharedWorkspace] mountedLocalVolumePaths];
+	return [vols count];
+#endif
 }
 
 String DirAccessOSX::get_drive(int p_drive) {
+#ifdef MAC_OS_X_VERSION_10_6_FEATURES
 	NSArray *res_keys = [NSArray arrayWithObjects:NSURLVolumeURLKey, NSURLIsSystemImmutableKey, nil];
 	NSArray *vols = [[NSFileManager defaultManager] mountedVolumeURLsIncludingResourceValuesForKeys:res_keys options:NSVolumeEnumerationSkipHiddenVolumes];
 	int count = [vols count];
@@ -61,21 +66,36 @@ String DirAccessOSX::get_drive(int p_drive) {
 	ERR_FAIL_INDEX_V(p_drive, count, "");
 
 	String volname;
-	NSString *path = [vols[p_drive] path];
-
+	NSString *path = [[vols objectAtIndex:p_drive] path];
 	volname.parse_utf8([path UTF8String]);
-
 	return volname;
+#else
+	NSArray *vols = [[NSWorkspace sharedWorkspace] mountedLocalVolumePaths];
+	int count = [vols count];
+
+	ERR_FAIL_INDEX_V(p_drive, count, "");
+
+	String volname;
+	NSString *path = [[vols objectAtIndex:p_drive] path];
+	volname.parse_utf8([path UTF8String]);
+	return volname;
+#endif
 }
 
 bool DirAccessOSX::is_hidden(const String &p_name) {
+#ifdef MAC_OS_X_VERSION_10_6_FEATURES
 	String f = get_current_dir().plus_file(p_name);
-	NSURL *url = [NSURL fileURLWithPath:@(f.utf8().get_data())];
+	NSString * str = [NSString stringWithUTF8String: f.utf8().get_data()];
+	NSURL *url = [NSURL fileURLWithPath:str];
+
 	NSNumber *hidden = nil;
 	if (![url getResourceValue:&hidden forKey:NSURLIsHiddenKey error:nil]) {
 		return DirAccessUnix::is_hidden(p_name);
 	}
 	return [hidden boolValue];
+#else
+	return DirAccessUnix::is_hidden(p_name);
+#endif
 }
 
 #endif // UNIX_ENABLED || LIBC_FILEIO_ENABLED

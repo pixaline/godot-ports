@@ -79,11 +79,15 @@ Error AudioDriverCoreAudio::init() {
 #endif
 	desc.componentManufacturer = kAudioUnitManufacturer_Apple;
 
+	OSStatus result;
+#ifdef MAC_OS_X_VERSION_10_6_FEATURES
 	AudioComponent comp = AudioComponentFindNext(NULL, &desc);
 	ERR_FAIL_COND_V(comp == NULL, FAILED);
 
-	OSStatus result = AudioComponentInstanceNew(comp, &audio_unit);
+	result = AudioComponentInstanceNew(comp, &audio_unit);
 	ERR_FAIL_COND_V(result != noErr, FAILED);
+#endif
+
 
 #ifdef OSX_ENABLED
 	AudioObjectPropertyAddress prop;
@@ -325,10 +329,13 @@ void AudioDriverCoreAudio::finish() {
 		}
 #endif
 
+
+#ifdef MAC_OS_X_VERSION_10_6_FEATURES
 		result = AudioComponentInstanceDispose(audio_unit);
 		if (result != noErr) {
 			ERR_PRINT("AudioComponentInstanceDispose failed");
 		}
+#endif
 
 		audio_unit = NULL;
 		unlock();
@@ -346,11 +353,14 @@ Error AudioDriverCoreAudio::capture_init() {
 #endif
 	desc.componentManufacturer = kAudioUnitManufacturer_Apple;
 
+	OSStatus result;
+#ifdef MAC_OS_X_VERSION_10_6_FEATURES
 	AudioComponent comp = AudioComponentFindNext(NULL, &desc);
 	ERR_FAIL_COND_V(comp == NULL, FAILED);
 
-	OSStatus result = AudioComponentInstanceNew(comp, &input_unit);
+	result = AudioComponentInstanceNew(comp, &input_unit);
 	ERR_FAIL_COND_V(result != noErr, FAILED);
+#endif
 
 #ifdef OSX_ENABLED
 	AudioObjectPropertyAddress prop;
@@ -458,12 +468,12 @@ void AudioDriverCoreAudio::capture_finish() {
 			ERR_PRINT("AudioObjectRemovePropertyListener failed");
 		}
 #endif
-
+#ifdef MAC_OS_X_VERSION_10_6_FEATURES
 		result = AudioComponentInstanceDispose(input_unit);
 		if (result != noErr) {
 			ERR_PRINT("AudioComponentInstanceDispose failed");
 		}
-
+#endif
 		input_unit = NULL;
 		unlock();
 	}

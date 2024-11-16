@@ -40,6 +40,13 @@
 #include <CoreAudio/AudioHardware.h>
 #endif
 
+#if	(MAC_OS_X_VERSION_MAX_ALLOWED <= MAC_OS_X_VERSION_10_5)
+	#define AudioComponentInstance			ComponentInstance
+	#define AudioComponentDescription		ComponentDescription
+	#define	AudioComponent					Component
+	#define CA_DO_NOT_USE_AUDIO_COMPONENT	1
+#endif
+
 class AudioDriverCoreAudio : public AudioDriver {
 	AudioComponentInstance audio_unit;
 	AudioComponentInstance input_unit;

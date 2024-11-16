@@ -5834,7 +5834,7 @@ RID RasterizerStorageGLES2::canvas_light_shadow_buffer_create(int p_width) {
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, cls->size, cls->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 	} else {
 #ifdef GLES_OVER_GL
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, cls->size, cls->height, 0, _RED_OES, GL_FLOAT, nullptr);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, cls->size, cls->height, 0, _RED_OES, GL_FLOAT, nullptr);
 #else
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_FLOAT, cls->size, cls->height, 0, _RED_OES, GL_FLOAT, NULL);
 #endif

@@ -38,14 +38,6 @@
 #include "scene/resources/default_theme/default_theme.h"
 #include "scene/resources/dynamic_font.h"
 
-#define MAKE_FALLBACKS(m_name)          \
-	m_name->add_fallback(FontArabic);   \
-	m_name->add_fallback(FontHebrew);   \
-	m_name->add_fallback(FontThai);     \
-	m_name->add_fallback(FontHindi);    \
-	m_name->add_fallback(FontJapanese); \
-	m_name->add_fallback(FontFallback);
-
 // Enable filtering and mipmaps on the editor fonts to improve text appearance
 // in editors that are zoomed in/out without having dedicated fonts to generate.
 // This is the case in GraphEdit-based editors such as the visual script and
@@ -65,8 +57,7 @@
 		m_name->set_font_data(DefaultFont);                     \
 	}                                                           \
 	m_name->set_spacing(DynamicFont::SPACING_TOP, -EDSCALE);    \
-	m_name->set_spacing(DynamicFont::SPACING_BOTTOM, -EDSCALE); \
-	MAKE_FALLBACKS(m_name);
+	m_name->set_spacing(DynamicFont::SPACING_BOTTOM, -EDSCALE);
 
 #define MAKE_BOLD_FONT(m_name, m_size)                          \
 	Ref<DynamicFont> m_name;                                    \
@@ -81,8 +72,7 @@
 		m_name->set_font_data(DefaultFontBold);                 \
 	}                                                           \
 	m_name->set_spacing(DynamicFont::SPACING_TOP, -EDSCALE);    \
-	m_name->set_spacing(DynamicFont::SPACING_BOTTOM, -EDSCALE); \
-	MAKE_FALLBACKS(m_name);
+	m_name->set_spacing(DynamicFont::SPACING_BOTTOM, -EDSCALE);
 
 #define MAKE_SOURCE_FONT(m_name, m_size)                        \
 	Ref<DynamicFont> m_name;                                    \
@@ -97,8 +87,7 @@
 		m_name->set_font_data(dfmono);                          \
 	}                                                           \
 	m_name->set_spacing(DynamicFont::SPACING_TOP, -EDSCALE);    \
-	m_name->set_spacing(DynamicFont::SPACING_BOTTOM, -EDSCALE); \
-	MAKE_FALLBACKS(m_name);
+	m_name->set_spacing(DynamicFont::SPACING_BOTTOM, -EDSCALE);
 
 void editor_register_fonts(Ref<Theme> p_theme) {
 	OS::get_singleton()->benchmark_begin_measure("editor_register_fonts");
@@ -189,48 +178,6 @@ void editor_register_fonts(Ref<Theme> p_theme) {
 	DefaultFontBold->set_hinting(font_hinting);
 	DefaultFontBold->set_font_ptr(_font_NotoSansUI_Bold, _font_NotoSansUI_Bold_size);
 	DefaultFontBold->set_force_autohinter(true); // just looks better..i think?
-
-	Ref<DynamicFontData> FontFallback;
-	FontFallback.instance();
-	FontFallback->set_antialiased(font_antialiased);
-	FontFallback->set_hinting(font_hinting);
-	FontFallback->set_font_ptr(_font_DroidSansFallback, _font_DroidSansFallback_size);
-	FontFallback->set_force_autohinter(true); //just looks better..i think?
-
-	Ref<DynamicFontData> FontJapanese;
-	FontJapanese.instance();
-	FontJapanese->set_antialiased(font_antialiased);
-	FontJapanese->set_hinting(font_hinting);
-	FontJapanese->set_font_ptr(_font_DroidSansJapanese, _font_DroidSansJapanese_size);
-	FontJapanese->set_force_autohinter(true); //just looks better..i think?
-
-	Ref<DynamicFontData> FontArabic;
-	FontArabic.instance();
-	FontArabic->set_antialiased(font_antialiased);
-	FontArabic->set_hinting(font_hinting);
-	FontArabic->set_font_ptr(_font_NotoNaskhArabicUI_Regular, _font_NotoNaskhArabicUI_Regular_size);
-	FontArabic->set_force_autohinter(true); //just looks better..i think?
-
-	Ref<DynamicFontData> FontHebrew;
-	FontHebrew.instance();
-	FontHebrew->set_antialiased(font_antialiased);
-	FontHebrew->set_hinting(font_hinting);
-	FontHebrew->set_font_ptr(_font_NotoSansHebrew_Regular, _font_NotoSansHebrew_Regular_size);
-	FontHebrew->set_force_autohinter(true); //just looks better..i think?
-
-	Ref<DynamicFontData> FontThai;
-	FontThai.instance();
-	FontThai->set_antialiased(font_antialiased);
-	FontThai->set_hinting(font_hinting);
-	FontThai->set_font_ptr(_font_NotoSansThaiUI_Regular, _font_NotoSansThaiUI_Regular_size);
-	FontThai->set_force_autohinter(true); //just looks better..i think?
-
-	Ref<DynamicFontData> FontHindi;
-	FontHindi.instance();
-	FontHindi->set_antialiased(font_antialiased);
-	FontHindi->set_hinting(font_hinting);
-	FontHindi->set_font_ptr(_font_NotoSansDevanagariUI_Regular, _font_NotoSansDevanagariUI_Regular_size);
-	FontHindi->set_force_autohinter(true); //just looks better..i think?
 
 	/* Hack */
 

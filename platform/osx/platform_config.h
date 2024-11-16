@@ -30,6 +30,16 @@
 
 #include <alloca.h>
 
-#define GLES3_INCLUDE_H "thirdparty/glad/glad/glad.h"
-#define GLES2_INCLUDE_H "thirdparty/glad/glad/glad.h"
+#if GLAD_ENABLED
+	#define GLES3_INCLUDE_H "thirdparty/glad/glad/glad.h"
+	#define GLES2_INCLUDE_H "thirdparty/glad/glad/glad.h"
+#else
+	#define GLES3_INCLUDE_H "platform/osx/glfixes.h"
+	#define GLES2_INCLUDE_H "platform/osx/glfixes.h"
+#endif
+
+#ifdef MAC_OS_X_VERSION_10_6_FEATURES
 #define PTHREAD_RENAME_SELF
+#else
+#define PTHREAD_NO_RENAME
+#endif

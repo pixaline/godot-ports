@@ -44,7 +44,7 @@
 #include "editor/editor_node.h"
 #include "editor/editor_settings.h"
 #include "modules/modules_enabled.gen.h" // For regex.
-#include "platform/osx/logo.gen.h"
+//#include "platform/osx/logo.gen.h"
 
 #include <sys/stat.h>
 
@@ -2106,9 +2106,11 @@ bool EditorExportPlatformOSX::has_valid_project_configuration(const Ref<EditorEx
 }
 
 EditorExportPlatformOSX::EditorExportPlatformOSX() {
+	/*
 	Ref<Image> img = memnew(Image(_osx_logo));
 	logo.instance();
 	logo->create_from_image(img);
+	*/
 }
 
 EditorExportPlatformOSX::~EditorExportPlatformOSX() {

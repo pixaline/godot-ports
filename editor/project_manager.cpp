@@ -852,13 +852,7 @@ public:
 		rasterizer_container->add_child(rshb);
 		rasterizer_button_group.instance();
 
-		// Enable GLES3 by default as it's the default value for the project setting.
-#ifndef SERVER_ENABLED
-		bool gles3_viable = RasterizerGLES3::is_viable() == OK;
-#else
-		// Whatever, project manager isn't even used in headless builds.
 		bool gles3_viable = false;
-#endif
 
 		Container *rvb = memnew(VBoxContainer);
 		rvb->set_h_size_flags(SIZE_EXPAND_FILL);

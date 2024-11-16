@@ -109,7 +109,7 @@ PoolStringArray MIDIDriverCoreMidi::get_connected_inputs() {
 }
 
 MIDIDriverCoreMidi::MIDIDriverCoreMidi() :
-		client(0) {
+		client(0), port_in(0) {
 }
 
 MIDIDriverCoreMidi::~MIDIDriverCoreMidi() {

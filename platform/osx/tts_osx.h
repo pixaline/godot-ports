@@ -39,13 +39,19 @@
 
 #import <AppKit/AppKit.h>
 
+#ifdef MAC_OS_X_VERSION_10_6_FEATURES
+
 #if __has_include(<AVFAudio/AVSpeechSynthesis.h>)
 #import <AVFAudio/AVSpeechSynthesis.h>
 #else
 #import <AVFoundation/AVFoundation.h>
 #endif
 
-@interface TTS_OSX : NSObject <AVSpeechSynthesizerDelegate> {
+@interface TTS_OSX : NSObject <AVSpeechSynthesizerDelegate>
+#else
+@interface TTS_OSX : NSObject
+#endif
+{
 	// AVSpeechSynthesizer
 	bool speaking;
 	Map<id, int> ids;

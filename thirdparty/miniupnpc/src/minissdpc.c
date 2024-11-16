@@ -471,7 +471,7 @@ static int upnp_gettimeofday(struct timeval * tv)
 #elif defined(CLOCK_MONOTONIC_FAST) || defined(CLOCK_MONOTONIC)
 #if defined(__APPLE__)
 #if defined(__clang__)
-	if (__builtin_available(macOS 10.12, iOS 10.0, tvOS 10.0, watchOS 3.0, *)) {
+	if (clock_gettime != NULL) {
 #else /* !defined(__clang__) */
 	if (clock_gettime != NULL) {
 #endif /* defined(__clang__) */

@@ -33,12 +33,12 @@
 #include "core/io/compression.h"
 #include "core/io/file_access_memory.h"
 #include "core/io/translation_loader_po.h"
-#include "editor/doc_translations.gen.h"
-#include "editor/editor_translations.gen.h"
+//#include "editor/doc_translations.gen.h"
+//#include "editor/editor_translations.gen.h"
 
 Vector<String> get_editor_locales() {
 	Vector<String> locales;
-
+#ifdef _EDITOR_TRANSLATIONS_H
 	EditorTranslationList *etl = _editor_translations;
 	while (etl->data) {
 		const String &locale = etl->lang;
@@ -46,11 +46,12 @@ Vector<String> get_editor_locales() {
 
 		etl++;
 	}
-
+#endif
 	return locales;
 }
 
 void load_editor_translations(const String &p_locale) {
+#ifdef _EDITOR_TRANSLATIONS_H
 	EditorTranslationList *etl = _editor_translations;
 	while (etl->data) {
 		if (etl->lang == p_locale) {
@@ -73,9 +74,11 @@ void load_editor_translations(const String &p_locale) {
 
 		etl++;
 	}
+#endif
 }
 
 void load_doc_translations(const String &p_locale) {
+#ifdef _DOC_TRANSLATIONS_H
 	DocTranslationList *dtl = _doc_translations;
 	while (dtl->data) {
 		if (dtl->lang == p_locale) {
@@ -98,4 +101,5 @@ void load_doc_translations(const String &p_locale) {
 
 		dtl++;
 	}
+#endif
 }
