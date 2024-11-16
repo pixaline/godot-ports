@@ -35,63 +35,42 @@
 
 #if !defined(NO_THREADS)
 #include "core/typedefs.h"
-#include <pthread.h>
+
+#include <shared_mutex>
 
 class RWLock {
-private:
-    mutable pthread_mutex_t mutex;
-    mutable pthread_cond_t read_cv;
-    mutable pthread_cond_t write_cv;
-    mutable int readers{0};
-    mutable bool writing{false};
+	mutable std::shared_timed_mutex mutex;
 
 public:
-    RWLock() {
-        pthread_mutex_init(&mutex, nullptr);
-        pthread_cond_init(&read_cv, nullptr);
-        pthread_cond_init(&write_cv, nullptr);
-    }
+	// Lock the RWLock, block if locked by someone else.
+	_ALWAYS_INLINE_ void read_lock() const {
+		mutex.lock_shared();
+	}
 
-    ~RWLock() {
-        pthread_mutex_destroy(&mutex);
-        pthread_cond_destroy(&read_cv);
-        pthread_cond_destroy(&write_cv);
-    }
+	// Unlock the RWLock, let other threads continue.
+	_ALWAYS_INLINE_ void read_unlock() const {
+		mutex.unlock_shared();
+	}
 
-    void read_lock() const {
-        pthread_mutex_lock(&mutex);
-        while (writing) {
-            pthread_cond_wait(&read_cv, &mutex);
-        }
-        ++readers;
-        pthread_mutex_unlock(&mutex);
-    }
+	// Attempt to lock the RWLock for reading. True on success, false means it can't lock.
+	_ALWAYS_INLINE_ Error read_try_lock() const {
+		return mutex.try_lock_shared() ? OK : ERR_BUSY;
+	}
 
-    void read_unlock() const {
-        pthread_mutex_lock(&mutex);
-        --readers;
-        if (readers == 0) {
-            pthread_cond_signal(&write_cv);
-        }
-        pthread_mutex_unlock(&mutex);
-    }
+	// Lock the RWLock, block if locked by someone else.
+	_ALWAYS_INLINE_ void write_lock() {
+		mutex.lock();
+	}
 
-    void write_lock() {
-        pthread_mutex_lock(&mutex);
-        while (writing || readers > 0) {
-            pthread_cond_wait(&write_cv, &mutex);
-        }
-        writing = true;
-        pthread_mutex_unlock(&mutex);
-    }
+	// Unlock the RWLock, let other threads continue.
+	_ALWAYS_INLINE_ void write_unlock() {
+		mutex.unlock();
+	}
 
-    void write_unlock() {
-        pthread_mutex_lock(&mutex);
-        writing = false;
-        pthread_cond_broadcast(&read_cv);  // Notify all readers
-        pthread_cond_signal(&write_cv);    // Notify one writer
-        pthread_mutex_unlock(&mutex);
-    }
+	// Attempt to lock the RWLock for writing. True on success, false means it can't lock.
+	_ALWAYS_INLINE_ Error write_try_lock() {
+		return mutex.try_lock() ? OK : ERR_BUSY;
+	}
 };
 
 #else
