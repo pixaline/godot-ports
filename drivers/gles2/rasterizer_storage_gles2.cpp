@@ -138,7 +138,7 @@ int32_t RasterizerStorageGLES2::safe_gl_get_integer(unsigned int p_gl_param_name
 	// There is no glGetInteger64v in the base GLES2 spec as far as I can see.
 	// So we will just have a capped 32 bit version for GLES2.
 	int32_t temp;
-	glGetIntegerv(p_gl_param_name, &temp);
+	glGetIntegerv(p_gl_param_name, (GLint*)&temp);
 	temp = MIN(temp, p_max_accepted);
 	return temp;
 }
@@ -5208,81 +5208,6 @@ void RasterizerStorageGLES2::_render_target_allocate(RenderTarget *rt) {
 	/* BACK FBO */
 	/* For MSAA */
 
-#ifndef JAVASCRIPT_ENABLED
-	if (rt->msaa >= VS::VIEWPORT_MSAA_2X && rt->msaa <= VS::VIEWPORT_MSAA_16X && config.multisample_supported) {
-		rt->multisample_active = true;
-
-		static const int msaa_value[] = { 0, 2, 4, 8, 16 };
-		int msaa = msaa_value[rt->msaa];
-
-		int max_samples = 0;
-		glGetIntegerv(GL_MAX_SAMPLES, &max_samples);
-		if (msaa > max_samples) {
-			WARN_PRINT("MSAA must be <= GL_MAX_SAMPLES, falling-back to GL_MAX_SAMPLES = " + itos(max_samples));
-			msaa = max_samples;
-		}
-
-		//regular fbo
-		glGenFramebuffers(1, &rt->multisample_fbo);
-		glBindFramebuffer(GL_FRAMEBUFFER, rt->multisample_fbo);
-
-		glGenRenderbuffers(1, &rt->multisample_depth);
-		glBindRenderbuffer(GL_RENDERBUFFER, rt->multisample_depth);
-		glRenderbufferStorageMultisample(GL_RENDERBUFFER, msaa, config.depth_buffer_internalformat, rt->width, rt->height);
-
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rt->multisample_depth);
-
-#if defined(GLES_OVER_GL) || defined(IPHONE_ENABLED)
-
-		glGenRenderbuffers(1, &rt->multisample_color);
-		glBindRenderbuffer(GL_RENDERBUFFER, rt->multisample_color);
-		glRenderbufferStorageMultisample(GL_RENDERBUFFER, msaa, color_internal_format, rt->width, rt->height);
-
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rt->multisample_color);
-#elif defined(ANDROID_ENABLED)
-		// Render to a texture in android
-		glGenTextures(1, &rt->multisample_color);
-		glBindTexture(GL_TEXTURE_2D, rt->multisample_color);
-
-		glTexImage2D(GL_TEXTURE_2D, 0, color_internal_format, rt->width, rt->height, 0, color_format, color_type, NULL);
-
-		// multisample buffer is same size as front buffer, so just use nearest
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-		glFramebufferTexture2DMultisample(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, rt->multisample_color, 0, msaa);
-#endif
-
-		GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-
-		if (status != GL_FRAMEBUFFER_COMPLETE) {
-			// Delete allocated resources and default to no MSAA
-			WARN_PRINT_ONCE("Cannot allocate back framebuffer for MSAA");
-			printf("err status: %x\n", status);
-			config.multisample_supported = false;
-			rt->multisample_active = false;
-
-			glDeleteFramebuffers(1, &rt->multisample_fbo);
-			rt->multisample_fbo = 0;
-
-			glDeleteRenderbuffers(1, &rt->multisample_depth);
-			rt->multisample_depth = 0;
-#ifdef ANDROID_ENABLED
-			glDeleteTextures(1, &rt->multisample_color);
-#else
-			glDeleteRenderbuffers(1, &rt->multisample_color);
-#endif
-			rt->multisample_color = 0;
-		}
-
-		glBindRenderbuffer(GL_RENDERBUFFER, 0);
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-#ifdef ANDROID_ENABLED
-		glBindTexture(GL_TEXTURE_2D, 0);
-#endif
-
-	} else
-#endif // JAVASCRIPT_ENABLED
 	{
 		rt->multisample_active = false;
 	}
@@ -6520,10 +6445,10 @@ void RasterizerStorageGLES2::initialize() {
 	frame.current_rt = nullptr;
 	frame.clear_request = false;
 
-	glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, &config.max_vertex_texture_image_units);
-	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &config.max_texture_size);
-	glGetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE, &config.max_cubemap_texture_size);
-	glGetIntegerv(GL_MAX_VIEWPORT_DIMS, config.max_viewport_dimensions);
+	glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, (GLint*)&config.max_vertex_texture_image_units);
+	glGetIntegerv(GL_MAX_TEXTURE_SIZE, (GLint*)&config.max_texture_size);
+	glGetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE, (GLint*)&config.max_cubemap_texture_size);
+	glGetIntegerv(GL_MAX_VIEWPORT_DIMS, (GLint*)config.max_viewport_dimensions);
 
 	// the use skeleton software path should be used if either float texture is not supported,
 	// OR max_vertex_texture_image_units is zero

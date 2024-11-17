@@ -54,7 +54,9 @@
 
 #include <dlfcn.h>
 #include <fcntl.h>
+#ifdef MAC_OS_X_VERSION_10_7_FEATURES
 #include <libproc.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -87,9 +89,9 @@
 
 #ifndef MAC_OS_X_VERSION_10_6_FEATURES
 #include <mach/mach_time.h>
+#define NSUInteger unsigned long
 #endif
 
-#pragma longcall(1)
 
 static void get_key_modifier_state(unsigned int p_osx_state, Ref<InputEventWithModifiers> state) {
 	state->set_shift((p_osx_state & NSEventModifierFlagShift));
@@ -526,11 +528,16 @@ static NSCursor *cursorFromSelector(SEL selector, SEL fallback = nil) {
 
 @end
 
+#ifdef MAX_OS_X_VERSION_10_6_FEATURES
 @interface GodotContentView : NSOpenGLView <NSTextInputClient> {
 	NSTrackingArea *trackingArea;
+#else
+@interface GodotContentView : NSOpenGLView <NSTextInput> {
+#endif
 	NSMutableAttributedString *markedText;
 	bool imeInputEventInProgress;
 }
+
 - (void)cancelComposition;
 - (BOOL)wantsUpdateLayer;
 - (void)updateLayer;
@@ -568,9 +575,12 @@ static NSCursor *cursorFromSelector(SEL selector, SEL fallback = nil) {
 
 - (id)init {
 	self = [super init];
+#ifdef MAX_OS_X_VERSION_10_6_FEATURES
 	trackingArea = nil;
 	imeInputEventInProgress = false;
 	[self updateTrackingAreas];
+#endif
+
 #ifdef MAC_OS_X_VERSION_10_6_FEATURES
 	[self registerForDraggedTypes:[NSArray arrayWithObject:NSPasteboardTypeFileURL]];
 #else
@@ -581,8 +591,10 @@ static NSCursor *cursorFromSelector(SEL selector, SEL fallback = nil) {
 }
 
 - (void)dealloc {
+#ifdef MAX_OS_X_VERSION_10_6_FEATURES
 	[trackingArea release];
 	[markedText release];
+#endif
 	[super dealloc];
 }
 
@@ -645,9 +657,11 @@ static const NSRange kEmptyRange = { NSNotFound, 0 };
 	return nil;
 }
 
+#ifdef MAC_OS_X_VERSION_10_6_FEATURES
 - (NSUInteger)characterIndexForPoint:(NSPoint)aPoint {
 	return 0;
 }
+#endif
 
 - (NSRect)firstRectForCharacterRange:(NSRange)aRange actualRange:(NSRangePointer)actualRange {
 	const NSRect contentRect = [OS_OSX::singleton->window_view frame];
@@ -684,7 +698,7 @@ static const NSRange kEmptyRange = { NSNotFound, 0 };
 		characters = (NSString *)aString;
 	}
 
-	NSUInteger i, length = [characters length];
+	NSUInteger long i, length = [characters length];
 
 	NSCharacterSet *ctrlChars = [NSCharacterSet controlCharacterSet];
 	NSCharacterSet *wsnlChars = [NSCharacterSet whitespaceAndNewlineCharacterSet];
@@ -996,6 +1010,7 @@ static void _mouseDownEvent(NSEvent *event, int index, int mask, bool pressed) {
 }
 
 - (void)updateTrackingAreas {
+#ifdef MAX_OS_X_VERSION_10_6_FEATURES
 	if (trackingArea != nil) {
 		[self removeTrackingArea:trackingArea];
 		[trackingArea release];
@@ -1014,6 +1029,7 @@ static void _mouseDownEvent(NSEvent *event, int index, int mask, bool pressed) {
 				userInfo:nil];
 
 	[self addTrackingArea:trackingArea];
+#endif
 	[super updateTrackingAreas];
 }
 
@@ -1797,7 +1813,7 @@ Error OS_OSX::initialize(const VideoMode &p_desired, int p_video_driver, int p_a
 	// Fail if a robustness strategy was requested
 
 #define ADD_ATTR(x) \
-	{ attributes[attributeCount++] = x; }
+	{ attributes[attributeCount++] = (NSOpenGLPixelFormatAttribute)x; }
 #define ADD_ATTR2(x, y) \
 	{                   \
 		ADD_ATTR(x);    \
@@ -1903,7 +1919,10 @@ Error OS_OSX::initialize(const VideoMode &p_desired, int p_video_driver, int p_a
 	AudioDriverManager::initialize(p_audio_driver);
 
 	input = memnew(InputDefault);
+
+#ifdef OSX_JOYPAD_ENABLED
 	joypad_osx = memnew(JoypadOSX);
+#endif
 
 	power_manager = memnew(PowerOSX);
 
@@ -1935,7 +1954,9 @@ void OS_OSX::finalize() {
 
 	delete_main_loop();
 
+#ifdef OSX_JOYPAD_ENABLED
 	memdelete(joypad_osx);
+#endif
 	memdelete(input);
 
 	cursors_cache.clear();
@@ -2453,7 +2474,11 @@ String OS_OSX::get_system_dir(SystemDir p_dir, bool p_shared_storage) const {
 			spid = NSDocumentDirectory;
 		} break;
 		case SYSTEM_DIR_DOWNLOADS: {
+#ifdef MAC_OS_X_VERSION_10_6_FEATURES
 			spid = NSDownloadsDirectory;
+#else
+			spid = NSDocumentDirectory;
+#endif
 		} break;
 		case SYSTEM_DIR_MOVIES: {
 #ifdef MAC_OS_X_VERSION_10_6_FEATURES
@@ -3293,6 +3318,7 @@ void _update_keyboard_layouts() {
 	// Update latin variant
 	latin_variant = OS::LATIN_KEYBOARD_QWERTY;
 
+#ifdef MAC_OS_X_VERSION_10_5_FEATURES
 	CGKeyCode keys[] = { kVK_ANSI_Q, kVK_ANSI_W, kVK_ANSI_E, kVK_ANSI_R, kVK_ANSI_T, kVK_ANSI_Y };
 	NSString *test = createStringForKeys(keys, 6);
 
@@ -3311,6 +3337,7 @@ void _update_keyboard_layouts() {
 	}
 
 	[test release];
+#endif
 
 	keyboard_layout_dirty = false;
 }
@@ -3498,7 +3525,9 @@ void OS_OSX::push_input(const Ref<InputEvent> &p_event) {
 
 void OS_OSX::force_process_input() {
 	process_events(); // get rid of pending events
+#ifdef OSX_JOYPAD_ENABLED
 	joypad_osx->process_joypads();
+#endif
 }
 
 void OS_OSX::pre_wait_observer_cb(CFRunLoopObserverRef p_observer, CFRunLoopActivity p_activiy, void *p_context) {
@@ -3537,7 +3566,9 @@ void OS_OSX::run() {
 	while (!force_quit && !quit) {
 		@try {
 			process_events(); // get rid of pending events
+#ifdef OSX_JOYPAD_ENABLED
 			joypad_osx->process_joypads();
+#endif
 
 			if (Main::iteration()) {
 				quit = true;

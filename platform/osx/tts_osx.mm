@@ -30,6 +30,10 @@
 
 #include "tts_osx.h"
 
+#ifndef MAC_OS_X_VERSION_10_5_FEATURES
+#define NSUInteger unsigned long
+#endif
+
 @implementation TTS_OSX
 
 - (id)init {
@@ -104,15 +108,19 @@
 }
 
 - (void)pauseSpeaking {
+#ifdef MAC_OS_X_VERSION_10_5_FEATURES
 	NSSpeechSynthesizer *ns_synth = synth;
 	[ns_synth pauseSpeakingAtBoundary:NSSpeechImmediateBoundary];
 	paused = true;
+#endif
 }
 
 - (void)resumeSpeaking {
+#ifdef MAC_OS_X_VERSION_10_5_FEATURES
 	NSSpeechSynthesizer *ns_synth = synth;
 	[ns_synth continueSpeaking];
 	paused = false;
+#endif
 }
 
 - (void)stopSpeaking {
@@ -168,7 +176,7 @@
 - (Array)getVoices {
 	Array list;
 	
-#ifdef MAC_OS_X_VERSION_10_6_FEATURES // TODO
+#ifdef MAC_OS_X_VERSION_10_5_FEATURES
 	for (NSString *voiceIdentifierString in [NSSpeechSynthesizer availableVoices]) {
 		NSString *voiceLocaleIdentifier = [[NSSpeechSynthesizer attributesForVoice:voiceIdentifierString] objectForKey:NSVoiceLocaleIdentifier];
 		NSString *voiceName = [[NSSpeechSynthesizer attributesForVoice:voiceIdentifierString] objectForKey:NSVoiceName];

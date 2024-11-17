@@ -212,8 +212,17 @@ struct MethodInfo {
 	List<PropertyInfo> arguments;
 	Vector<Variant> default_arguments;
 
-	inline bool operator==(const MethodInfo &p_method) const { return id == p_method.id; }
-	inline bool operator<(const MethodInfo &p_method) const { return id == p_method.id ? (name < p_method.name) : (id < p_method.id); }
+        inline bool operator==(const MethodInfo &p_method) const {
+                return this->id == p_method.id;
+        }
+        inline bool operator<(const MethodInfo &p_method) const {
+                int dif = this->id == p_method.id;
+                if(dif == 0) {
+                        return (this->name < p_method.name);
+                } else {
+                        return (dif < 0);
+                }
+        }
 
 	operator Dictionary() const;
 

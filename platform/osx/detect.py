@@ -93,10 +93,12 @@ def configure(env):
         env.Append(CCFLAGS=["-mmacosx-version-min=" + osxver])
         env.Append(LINKFLAGS=["-mmacosx-version-min=" + osxver])
 		
-        #if float(osxver) >= 10.6:
-            #env.Append(CPPDEFINES=["MAC_OS_X_10_6_FEATURES"])
-        #if float(osxver) >= 10.7:
-            #env.Append(CPPDEFINES=["MAC_OS_X_10_7_FEATURES"])
+        if float(osxver) >= 10.5:
+            env.Append(CPPDEFINES=["MAC_OS_X_10_5_FEATURES"])
+        if float(osxver) >= 10.6:
+            env.Append(CPPDEFINES=["MAC_OS_X_10_6_FEATURES"])
+        if float(osxver) >= 10.7:
+            env.Append(CPPDEFINES=["MAC_OS_X_10_7_FEATURES"])
 
         if env["arch"] == "x86_64":
             env.Append(ASFLAGS=["-arch", "x86_64"])
@@ -118,6 +120,8 @@ def configure(env):
     if not vanilla and cc_version[0] == 15 and cc_version[1] == 0:
         env.Prepend(LINKFLAGS=["-ld_classic"])
 
+    env.Append(CCFLAGS=["-fobjc-exceptions"])
+
     if not "osxcross" in env:  # regular native build
         if env["macports_clang"] != "no":
             mpprefix = os.environ.get("MACPORTS_PREFIX", "/opt/local")
@@ -129,8 +133,8 @@ def configure(env):
             env["AS"] = mpprefix + "/libexec/llvm-" + mpclangver + "/bin/llvm-as"
             env.Append(CPPDEFINES=["__MACPORTS__"])  # hack to fix libvpx MM256_BROADCASTSI128_SI256 define
         else:
-            env["CC"] = "clang"
-            env["CXX"] = "clang++"
+            env["CC"] = "gcc-7"
+            env["CXX"] = "g++-7"
 
         detect_darwin_sdk_path("osx", env)
         env.Append(CCFLAGS=["-isysroot", "$MACOS_SDK_PATH"])
@@ -170,17 +174,8 @@ def configure(env):
         if env["bits"] == "64":
             env.Append(CCFLAGS=["-ld64"])
 			
-        env.Append(CCFLAGS=["-fPIC"])
-		
-		# Statically link that
-        env.Append(CCFLAGS=["-fobjc-exceptions"])
+        # Statically link that
         env.Append(CCFLAGS=["-fstrict-aliasing"])
-        #env.Append(CPPFLAGS=["-mlongcall"])
-		
-        #env.Append(CCFLAGS=["-static-libstdc++"])
-        #env.Append(CCFLAGS=["-foc-use-gcc-libstdc++"])
-        #env.Append(CCFLAGS=["-fno-toplevel-reorder"])
-		
         env.Append(CCFLAGS=["-ffunction-sections"])
         env.Append(CCFLAGS=["-fdata-sections"])
         
@@ -191,8 +186,6 @@ def configure(env):
             #env.Append(CPPDEFINES=["NO_SAFE_CAST"])
             #env.Append(CXXFLAGS=["-fno-rtti"])
             pass
-		
-        env.Append(CPPDEFINES=["GLES_OVER_GL"])
 
 
 
@@ -244,9 +237,8 @@ def configure(env):
             "OSX_ENABLED",
             "UNIX_ENABLED",
             "GLES_ENABLED",
+			"GLES_OVER_GL",
             "APPLE_STYLE_KEYS",
-            "COREAUDIO_ENABLED",
-            "COREMIDI_ENABLED",
             "GL_SILENCE_DEPRECATION",
         ]
     )

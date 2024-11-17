@@ -96,7 +96,9 @@ public:
 #endif
 
 	InputDefault *input;
+#ifdef OSX_JOYPAD_ENABLED
 	JoypadOSX *joypad_osx;
+#endif
 
 	/* objc */
 

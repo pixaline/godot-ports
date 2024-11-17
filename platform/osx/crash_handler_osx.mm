@@ -40,13 +40,15 @@
 #include <unistd.h>
 
 #if defined(DEBUG_ENABLED)
-#define CRASH_HANDLER_ENABLED 1
+//#define CRASH_HANDLER_ENABLED 0
 #endif
 
 #ifdef CRASH_HANDLER_ENABLED
 #include <cxxabi.h>
 #include <dlfcn.h>
+#ifndef __APPLE__
 #include <execinfo.h>
+#endif
 #include <signal.h>
 #include <stdlib.h>
 

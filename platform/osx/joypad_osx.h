@@ -28,6 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
+#ifdef OSX_JOYPAD_ENABLED
 #ifndef JOYPAD_OSX_H
 #define JOYPAD_OSX_H
 
@@ -122,3 +123,4 @@ public:
 };
 
 #endif // JOYPAD_OSX_H
+#endif

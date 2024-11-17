@@ -114,7 +114,7 @@ private:
 		uint32_t code_version;
 		bool ok;
 		Version() {
-			id = 0;
+			this->id = 0;
 			vert_id = 0;
 			frag_id = 0;
 			uniform_location = nullptr;

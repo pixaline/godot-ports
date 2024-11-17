@@ -3224,7 +3224,7 @@ void RasterizerSceneGLES2::_post_process(Environment *env, const CameraMatrix &p
 				storage->frame.current_rt->width,
 				storage->frame.current_rt->height,
 			};
-			glUniform2iv(state.tonemap_shader.get_uniform(TonemapShaderGLES2::GLOW_TEXTURE_SIZE), 1, ss);
+			glUniform2iv(state.tonemap_shader.get_uniform(TonemapShaderGLES2::GLOW_TEXTURE_SIZE), 1, (GLint*)ss);
 		}
 
 		if (env->adjustments_enabled) {

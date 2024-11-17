@@ -2355,7 +2355,7 @@ void RasterizerCanvasGLES2::initialize() {
 	batch_initialize();
 
 	// just reserve some space (may not be needed as we are orphaning, but hey ho)
-	glGenBuffers(1, &bdata.gl_vertex_buffer);
+	glGenBuffers(1, (GLuint*)&bdata.gl_vertex_buffer);
 
 	if (bdata.vertex_buffer_size_bytes) {
 		glBindBuffer(GL_ARRAY_BUFFER, bdata.gl_vertex_buffer);
@@ -2363,7 +2363,7 @@ void RasterizerCanvasGLES2::initialize() {
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 		// pre fill index buffer, the indices never need to change so can be static
-		glGenBuffers(1, &bdata.gl_index_buffer);
+		glGenBuffers(1, (GLuint*)&bdata.gl_index_buffer);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bdata.gl_index_buffer);
 
 		Vector<uint16_t> indices;

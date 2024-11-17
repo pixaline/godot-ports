@@ -28,6 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
+#ifdef OSX_JOYPAD_ENABLED
 #include "joypad_osx.h"
 
 #include <machine/endian.h>
@@ -623,3 +624,4 @@ JoypadOSX::~JoypadOSX() {
 	CFRelease(hid_manager);
 	hid_manager = NULL;
 }
+#endif
