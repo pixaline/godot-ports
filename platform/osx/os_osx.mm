@@ -189,6 +189,29 @@ static NSCursor *cursorFromSelector(SEL selector, SEL fallback = nil) {
 		[app activateWithOptions:NSApplicationActivateIgnoringOtherApps];
 		break;
 	}
+#else
+	ProcessSerialNumber psn;
+	OSErr err = GetCurrentProcess(&psn);
+	if (err == noErr) {
+		// Find SystemUIServer process
+		ProcessInfoRec info;
+		info.processInfoLength = sizeof(ProcessInfoRec);
+		info.processName = NULL;
+		info.processAppSpec = NULL;
+		
+		err = GetProcessInformation(&psn, &info);
+		while (err == noErr) {
+			CFStringRef processName = NULL;
+			CopyProcessName(&psn, &processName);
+			if (processName && CFStringCompare(processName, CFSTR("SystemUIServer"), 0) == kCFCompareEqualTo) {
+				SetFrontProcess(&psn);
+				if (processName) CFRelease(processName);
+				break;
+			}
+			if (processName) CFRelease(processName);
+			err = GetNextProcess(&psn);
+		}
+	}
 #endif
 	[self performSelector:@selector(forceUnbundledWindowActivationHackStep2) withObject:nil afterDelay:0.02];
 }
@@ -206,20 +229,27 @@ static NSCursor *cursorFromSelector(SEL selector, SEL fallback = nil) {
 #ifdef MAC_OS_X_VERSION_10_6_FEATURES
 	[[NSRunningApplication currentApplication] activateWithOptions:NSApplicationActivateIgnoringOtherApps];
 #else
-	[[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
+	ProcessSerialNumber psn;
+	GetCurrentProcess(&psn);
+	SetFrontProcess(&psn);
 #endif
+	[[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notice {
-	/*
 	NSString *nsappname = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleName"];
+#ifdef MAC_OS_X_VERSION_10_6_FEATURES
 	NSString *nsbundleid_env = [NSString stringWithUTF8String:getenv("__CFBundleIdentifier")];
 	NSString *nsbundleid = [[NSBundle mainBundle] bundleIdentifier];
-	if (nsappname == nil || isatty(STDOUT_FILENO) || isatty(STDIN_FILENO) || isatty(STDERR_FILENO) || ![nsbundleid isEqualToString:nsbundleid_env]) {
+#endif
+	if (nsappname == nil || isatty(STDOUT_FILENO) || isatty(STDIN_FILENO) || isatty(STDERR_FILENO) 
+#ifdef MAC_OS_X_VERSION_10_6_FEATURES
+		|| ![nsbundleid isEqualToString:nsbundleid_env]
+#endif
+	){
 		// If the executable is started from terminal or is not bundled, macOS WindowServer won't register and activate app window correctly (menu and title bar are grayed out and input ignored).
 		[self performSelector:@selector(forceUnbundledWindowActivationHackStep1) withObject:nil afterDelay:0.02];
 	}
-	*/
 }
 
 - (void)globalMenuCallback:(id)sender {
@@ -2534,7 +2564,13 @@ Error OS_OSX::shell_open(String p_uri) {
 }
 
 String OS_OSX::get_locale() const {
+#ifdef MAC_OS_X_VERSION_10_6_FEATURES
 	NSString *locale_code = [[NSLocale preferredLanguages] objectAtIndex:0];
+#else
+    NSLocale *locale = [NSLocale currentLocale];
+    NSString *locale_code = [locale localeIdentifier];
+#endif
+
 	return String([locale_code UTF8String]).replace("-", "_");
 }
 
