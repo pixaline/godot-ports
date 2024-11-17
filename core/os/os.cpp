@@ -110,14 +110,16 @@ void OS::add_logger(Logger *p_logger) {
 }
 
 void OS::print_error(const char *p_function, const char *p_file, int p_line, const char *p_code, const char *p_rationale, Logger::ErrorType p_type) {
-	_logger->log_error(p_function, p_file, p_line, p_code, p_rationale, p_type);
+	printf("[ERROR]: %s at %s:%d\n%s\n%s", p_function, p_file, p_line, p_code, p_rationale);
+	//_logger->log_error(p_function, p_file, p_line, p_code, p_rationale, p_type);
 }
 
 void OS::print(const char *p_format, ...) {
 	va_list argp;
 	va_start(argp, p_format);
 
-	_logger->logv(p_format, argp, false);
+	vfprintf(stdout, p_format, argp);
+	fflush(stdout);  // Ensure immediate output
 
 	va_end(argp);
 };
@@ -126,7 +128,8 @@ void OS::printerr(const char *p_format, ...) {
 	va_list argp;
 	va_start(argp, p_format);
 
-	_logger->logv(p_format, argp, true);
+	vfprintf(stderr, p_format, argp);
+	fflush(stderr);  // Ensure immediate output
 
 	va_end(argp);
 };
