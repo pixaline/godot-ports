@@ -30,6 +30,9 @@
 
 #include "rasterizer_scene_gles2.h"
 
+#define GL_READ_FRAMEBUFFER 0x8CA8
+#define GL_DRAW_FRAMEBUFFER 0x8CA9
+
 #include "core/math/math_funcs.h"
 #include "core/math/transform.h"
 #include "core/os/os.h"
@@ -2827,6 +2830,7 @@ void RasterizerSceneGLES2::_post_process(Environment *env, const CameraMatrix &p
 	use_post_process = use_post_process || storage->frame.current_rt->use_fxaa;
 
 	// If using multisample buffer, resolve to post_process_effect buffer or to front buffer
+	/*
 	if (storage->frame.current_rt && storage->frame.current_rt->multisample_active) {
 		GLuint next_buffer;
 		if (use_post_process) {
@@ -2862,7 +2866,9 @@ void RasterizerSceneGLES2::_post_process(Environment *env, const CameraMatrix &p
 		// TODO: any other platform not supported? this will fail.. maybe we should just call _copy_texture_to_buffer here as well?
 		(void)next_buffer; // Silence warning as it's unused.
 #endif
-	} else if (use_post_process) {
+	} else
+	*/
+	if (use_post_process) {
 		if (storage->frame.current_rt->external.fbo != 0) {
 			_copy_texture_to_buffer(storage->frame.current_rt->external.color, storage->frame.current_rt->mip_maps[0].sizes[0].fbo);
 		} else {
@@ -3571,6 +3577,7 @@ void RasterizerSceneGLES2::render_scene(const Transform &p_cam_transform, const 
 		}
 	}
 
+	/*
 	if (storage->frame.current_rt && state.used_screen_texture) {
 		//copy screen texture
 
@@ -3608,6 +3615,8 @@ void RasterizerSceneGLES2::render_scene(const Transform &p_cam_transform, const 
 			glViewport(0, 0, viewport_width, viewport_height);
 		}
 	}
+	*/
+
 	// alpha pass
 
 	glBlendEquation(GL_FUNC_ADD);

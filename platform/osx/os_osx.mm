@@ -1791,8 +1791,8 @@ Error OS_OSX::initialize(const VideoMode &p_desired, int p_video_driver, int p_a
 	} else {
 		[window_view setWantsBestResolutionOpenGLSurface:NO];
 	}
-#endif
 	[window_object setColorSpace:[NSColorSpace sRGBColorSpace]];
+#endif
 
 	//[window_object setTitle:[NSString stringWithUTF8String:"GodotEnginies"]];
 	[window_object setContentView:window_view];

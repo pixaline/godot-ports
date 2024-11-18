@@ -20,6 +20,9 @@
 #define GL_DRAW_FRAMEBUFFER			GL_DRAW_FRAMEBUFFER_EXT
 #define GL_FRAMEBUFFER_COMPLETE 	GL_FRAMEBUFFER_COMPLETE_EXT
 
+
+#define GL_PIXEL_PACK_BUFFER		GL_PIXEL_PACK_BUFFER_ARB
+
 #define glGenerateMipmap 			glGenerateMipmapEXT
 
 #define glBindRenderbuffer 			glBindRenderbufferEXT
