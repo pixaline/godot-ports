@@ -290,7 +290,7 @@ static ThreadId_t getDebugThreadId()
 unsigned int btGetCurrentThreadIndex()
 {
 	const unsigned int kNullIndex = ~0U;
-	THREAD_LOCAL_STATIC unsigned int sThreadIndex = kNullIndex;
+	unsigned int sThreadIndex = kNullIndex;
 	if (sThreadIndex == kNullIndex)
 	{
 		sThreadIndex = gThreadCounter.getNext();
