@@ -6255,19 +6255,14 @@ void RasterizerStorageGLES2::initialize() {
 	config.max_texture_image_units = safe_gl_get_integer(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, Config::max_desired_texture_image_units);
 	gl_wrapper.initialize(config.max_texture_image_units);
 
-#ifdef GLES_OVER_GL
-	config.float_texture_supported = true;
-	config.s3tc_supported = true;
-	config.pvrtc_supported = false;
-	config.etc1_supported = false;
-	config.support_npot_repeat_mipmap = true;
-	config.depth_buffer_internalformat = GL_DEPTH_COMPONENT24;
-#else
 	config.float_texture_supported = config.extensions.has("GL_ARB_texture_float") || config.extensions.has("GL_OES_texture_float");
 	config.s3tc_supported = config.extensions.has("GL_EXT_texture_compression_s3tc") || config.extensions.has("WEBGL_compressed_texture_s3tc");
 	config.etc1_supported = config.extensions.has("GL_OES_compressed_ETC1_RGB8_texture") || config.extensions.has("WEBGL_compressed_texture_etc1");
 	config.pvrtc_supported = config.extensions.has("GL_IMG_texture_compression_pvrtc") || config.extensions.has("WEBGL_compressed_texture_pvrtc");
 	config.support_npot_repeat_mipmap = config.extensions.has("GL_OES_texture_npot");
+#ifdef GLES_OVER_GL
+	config.depth_buffer_internalformat = GL_DEPTH_COMPONENT24;
+#else
 
 	// If the desktop build is using S3TC, and you export / run from the IDE for android, if the device supports
 	// S3TC it will crash trying to load these textures, as they are not exported in the APK. This is a simple way
