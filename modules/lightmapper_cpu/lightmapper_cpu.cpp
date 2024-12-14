@@ -694,7 +694,7 @@ void LightmapperCPU::_plot_triangle(const Vector2 *p_vertices, const Vector3 *p_
 
 _ALWAYS_INLINE_ float uniform_rand() {
 	/* Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs" */
-	static thread_local uint32_t state = Math::rand();
+	static uint32_t state = Math::rand();
 	state ^= state << 13;
 	state ^= state >> 17;
 	state ^= state << 5;
