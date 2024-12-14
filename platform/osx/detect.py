@@ -25,6 +25,9 @@ def get_opts():
         ("osx_version", "OS X minimum target version"),
         ("osxcross_sdk", "OSXCross SDK version", "darwin14"),
         ("MACOS_SDK_PATH", "Path to the macOS SDK", ""),
+        ("osxcross_cc", "OSXCross C Compiler", "gcc"),
+        ("osxcross_cxx", "OSXCross CXX Compiler", "g++"),
+        ("osxcross_libatomic", "OSXCross Libatomic", ""),
         EnumVariable("macports_clang", "Build using Clang from MacPorts", "no", ("no", "5.0", "devel")),
         BoolVariable("debug_symbols", "Add debugging symbols to release/release_debug builds", True),
         BoolVariable("separate_debug_symbols", "Create a separate file containing debugging symbols", False),
@@ -149,19 +152,18 @@ def configure(env):
         elif env["arch"] == "x86_64":
             basecmd = root + "/target/bin/x86_64-apple-" + env["osxcross_sdk"] + "-"
         elif env["arch"] == "i386":
-            basecmd = root + "/target/bin/powerpc-apple-" + env["osxcross_sdk"] + "-"
+            basecmd = root + "/target/bin/i386-apple-" + env["osxcross_sdk"] + "-"
 
         ccache_path = os.environ.get("CCACHE")
         if ccache_path is None:
-            # apple = clang / clang++-gstdc++
-            # compiled = c / g++
-            env["CC"] = basecmd + "gcc"
-            env["CXX"] = basecmd + "g++" 
+            env["CC"] = basecmd + str(env["osxcross_cc"])
+            env["CXX"] = basecmd + str(env["osxcross_cxx"])
         else:
             # there aren't any ccache wrappers available for OS X cross-compile,
             # to enable caching we need to prepend the path to the ccache binary
             env["CC"] = ccache_path + " " + basecmd + "cc"
             env["CXX"] = ccache_path + " " + basecmd + "c++"
+
         env["AR"] = basecmd + "ar"
         env["RANLIB"] = basecmd + "ranlib"
         env["AS"] = basecmd + "as"
@@ -170,23 +172,30 @@ def configure(env):
 		# Find the correct LD
         env.Append(CCFLAGS=["-B" + basecmd])
         env.Append(LINKFLAGS=["-B" + basecmd])
-		
+
         if env["bits"] == "64":
             env.Append(CCFLAGS=["-ld64"])
-			
+
         # Statically link that
         env.Append(CCFLAGS=["-fstrict-aliasing"])
         env.Append(CCFLAGS=["-ffunction-sections"])
         env.Append(CCFLAGS=["-fdata-sections"])
-        
-        # Force the Linker to work in our sdk root (it might've been compiled to another path)
-        env.Append(LINKFLAGS=["-Wl,-syslibroot "+root+"/target/SDK/MacOSX10.5.sdk"])
-        
+
+        if env["osxcross_libatomic"]:
+            env.Append(LINKFLAGS=[env["osxcross_libatomic"]])
+
         if env["arch"] == "ppc":
+            # PPC builds of tools=yes fail because 'ppc branch out of range'
+            # ld: bl PPC branch out of range (33006356 max is +/-16MB): from __start (0x000024B4) to _main (0x01F7CAB0) in '__start'
+
             #env.Append(CPPDEFINES=["NO_SAFE_CAST"])
             #env.Append(CXXFLAGS=["-fno-rtti"])
             pass
 
+        if float(osxver) <= 10.5:
+            # Force the Linker to work in our sdk root (it might've been compiled to another path)
+            # Later OSX SDKs don't need this I think?
+            env.Append(LINKFLAGS=["-Wl,-syslibroot "+root+"/target/SDK/MacOSX10.5.sdk"])
 
 
     # LTO
@@ -235,6 +244,8 @@ def configure(env):
     env.Append(
         CPPDEFINES=[
             "OSX_ENABLED",
+            "COREAUDIO_ENABLED",
+            "COREMIDI_ENABLED",
             "UNIX_ENABLED",
             "GLES_ENABLED",
 			"GLES_OVER_GL",
@@ -264,15 +275,15 @@ def configure(env):
             "ForceFeedback"
         ]
     )
-	
-    if float(osxver) >= 10.6:
+
+    if float(osxver) >= 10.7:
         env.Append(
             LINKFLAGS=[
-                "-weak_framework",
+                "-framework",
                 "AVFoundation",
-                "-weak_framework",
+                "-framework",
                 "CoreMedia",
-                "-weak_framework",
+                "-framework",
                 "CoreVideo"
             ]
         )
