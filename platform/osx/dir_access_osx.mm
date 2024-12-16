@@ -76,7 +76,7 @@ String DirAccessOSX::get_drive(int p_drive) {
 	ERR_FAIL_INDEX_V(p_drive, count, "");
 
 	String volname;
-	NSString *path = [[vols objectAtIndex:p_drive] path];
+	NSString *path = [vols objectAtIndex:p_drive];
 	volname.parse_utf8([path UTF8String]);
 	return volname;
 #endif

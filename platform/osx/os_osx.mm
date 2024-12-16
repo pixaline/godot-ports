@@ -46,7 +46,7 @@
 #include <sys/sysctl.h>
 
 #include <Carbon/Carbon.h>
-#import <Cocoa/Cocoa.h>
+#include <Cocoa/Cocoa.h>
 #include <IOKit/IOCFPlugIn.h>
 #include <IOKit/IOKitLib.h>
 #include <IOKit/hid/IOHIDKeys.h>
@@ -54,9 +54,7 @@
 
 #include <dlfcn.h>
 #include <fcntl.h>
-#ifdef MAC_OS_X_10_6_FEATURES
 #include <libproc.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -199,7 +197,11 @@ static NSCursor *cursorFromSelector(SEL selector, SEL fallback = nil) {
 		ProcessInfoRec info;
 		info.processInfoLength = sizeof(ProcessInfoRec);
 		info.processName = NULL;
+#ifdef __LP64__
+		info.processAppRef = NULL;
+#else
 		info.processAppSpec = NULL;
+#endif
 		
 		err = GetProcessInformation(&psn, &info);
 		while (err == noErr) {
@@ -1281,7 +1283,6 @@ static int remapKey(unsigned int key, unsigned int state) {
 		return translateKey(key);
 
 
-#ifdef MAC_OS_X_10_6_FEATURES
 	TISInputSourceRef currentKeyboard = TISCopyCurrentKeyboardInputSource();
 	if (!currentKeyboard)
 		return translateKey(key);
@@ -1291,20 +1292,6 @@ static int remapKey(unsigned int key, unsigned int state) {
 		return translateKey(key);
 
 	const UCKeyboardLayout *keyboardLayout = (const UCKeyboardLayout *)CFDataGetBytePtr(layoutData);
-#else
-    KeyboardLayoutRef keyboardLayoutRef;
-    KeyboardLayoutKind layoutKind;
-    
-    if (KLGetCurrentKeyboardLayout(&keyboardLayoutRef) != noErr)
-        return translateKey(key);
-        
-    if (KLGetKeyboardLayoutProperty(keyboardLayoutRef, kKLKind, (const void **)&layoutKind) != noErr)
-        return translateKey(key);
-
-    UCKeyboardLayout *keyboardLayout;
-    if (KLGetKeyboardLayoutProperty(keyboardLayoutRef, kKLuchrData, (const void **)&keyboardLayout) != noErr)
-        return translateKey(key);
-#endif
 
 	UInt32 keysDown = 0;
 	UniChar chars[4];
@@ -3189,7 +3176,6 @@ bool OS_OSX::get_borderless_window() {
 }
 
 String OS_OSX::get_executable_path() const {
-#ifdef MAC_OS_X_10_6_FEATURES
 	int ret;
 	pid_t pid;
 	char pathbuf[PROC_PIDPATHINFO_MAXSIZE];
@@ -3202,7 +3188,6 @@ String OS_OSX::get_executable_path() const {
 
 		return path;
 	}
-#endif
 	return OS::get_executable_path();
 }
 
@@ -3213,7 +3198,6 @@ Error OS_OSX::execute(const String &p_path, const List<String> &p_arguments, boo
 // Returns string representation of keys, if they are printable.
 //
 static NSString *createStringForKeys(const CGKeyCode *keyCode, int length) {
-#ifdef MAC_OS_X_10_6_FEATURES
 	TISInputSourceRef currentKeyboard = TISCopyCurrentKeyboardInputSource();
 	if (!currentKeyboard)
 		return nil;
@@ -3223,20 +3207,6 @@ static NSString *createStringForKeys(const CGKeyCode *keyCode, int length) {
 		return nil;
 
 	const UCKeyboardLayout *keyboardLayout = (const UCKeyboardLayout *)CFDataGetBytePtr(layoutData);
-#else
-    KeyboardLayoutRef keyboardLayoutRef;
-    KeyboardLayoutKind layoutKind;
-    
-    if (KLGetCurrentKeyboardLayout(&keyboardLayoutRef) != noErr)
-        return nil;
-        
-    if (KLGetKeyboardLayoutProperty(keyboardLayoutRef, kKLKind, (const void **)&layoutKind) != noErr)
-        return nil;
-
-    UCKeyboardLayout *keyboardLayout;
-    if (KLGetKeyboardLayoutProperty(keyboardLayoutRef, kKLuchrData, (const void **)&keyboardLayout) != noErr)
-        return nil;
-#endif
 
 	OSStatus err;
 	CFMutableStringRef output = CFStringCreateMutable(NULL, 0);
