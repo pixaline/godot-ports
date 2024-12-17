@@ -33,7 +33,7 @@
 #include "core/os/input.h"
 #include "core/os/keyboard.h"
 #include "core/version_generated.gen.h"
-//#include "doc_data_compressed.gen.h"
+#include "doc_data_compressed.gen.h"
 #include "editor/plugins/script_editor_plugin.h"
 #include "editor_node.h"
 #include "editor_scale.h"
