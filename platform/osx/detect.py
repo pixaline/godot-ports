@@ -25,9 +25,9 @@ def get_opts():
         ("osx_version", "OS X minimum target version"),
         ("osxcross_sdk", "OSXCross SDK version", "darwin14"),
         ("MACOS_SDK_PATH", "Path to the macOS SDK", ""),
-        ("osxcross_cc", "OSXCross C Compiler", "gcc"),
-        ("osxcross_cxx", "OSXCross CXX Compiler", "g++"),
-        ("osxcross_linkflags", "OSXCross extra link flags", ""),
+	("cc", "C Compiler", "gcc"),
+        ("cxx", "CXX Compiler", "g++"),
+        ("linkflags", "Extra link flags", ""),
         EnumVariable("macports_clang", "Build using Clang from MacPorts", "no", ("no", "5.0", "devel")),
         BoolVariable("debug_symbols", "Add debugging symbols to release/release_debug builds", True),
         BoolVariable("separate_debug_symbols", "Create a separate file containing debugging symbols", False),
@@ -136,8 +136,8 @@ def configure(env):
             env["AS"] = mpprefix + "/libexec/llvm-" + mpclangver + "/bin/llvm-as"
             env.Append(CPPDEFINES=["__MACPORTS__"])  # hack to fix libvpx MM256_BROADCASTSI128_SI256 define
         else:
-            env["CC"] = "gcc-7"
-            env["CXX"] = "g++-7"
+            env["CC"] = env["cc"]
+            env["CXX"] = env["cxx"]
 
         detect_darwin_sdk_path("osx", env)
         env.Append(CCFLAGS=["-isysroot", "$MACOS_SDK_PATH"])
@@ -156,8 +156,8 @@ def configure(env):
 
         ccache_path = os.environ.get("CCACHE")
         if ccache_path is None:
-            env["CC"] = basecmd + str(env["osxcross_cc"])
-            env["CXX"] = basecmd + str(env["osxcross_cxx"])
+            env["CC"] = basecmd + str(env["cc"])
+            env["CXX"] = basecmd + str(env["cxx"])
         else:
             # there aren't any ccache wrappers available for OS X cross-compile,
             # to enable caching we need to prepend the path to the ccache binary
@@ -176,10 +176,6 @@ def configure(env):
         if env["bits"] == "64":
             env.Append(CCFLAGS=["-ld64"])
 
-        # In the OSXCross PPC set up, libatomic isn't linked properly yet. Here you can specify extra linking libraries
-        if env["osxcross_linkflags"]:
-            env.Append(LINKFLAGS=[env["osxcross_linkflags"]])
-
         if env["arch"] == "ppc":
             # PPC builds of tools=yes fail because 'ppc branch out of range'
             # ld: bl PPC branch out of range (33006356 max is +/-16MB): from __start (0x000024B4) to _main (0x01F7CAB0) in '__start'
@@ -192,6 +188,10 @@ def configure(env):
             env.Append(CXXFLAGS=["-fpermissive"])
             pass
 
+
+    # In the OSXCross PPC set up, libatomic isn't linked properly yet. Here you can specify extra linking libraries
+    if env["linkflags"]:
+        env.Append(LINKFLAGS=[env["linkflags"]])
 
     # LTO
 
