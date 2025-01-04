@@ -40,7 +40,10 @@
 #include <CoreAudio/AudioHardware.h>
 #endif
 
-#ifndef MAC_OS_X_10_5_FEATURES
+#ifndef MAC_OS_X_10_6_FEATURES
+	#define AudioComponentInstanceNew		OpenAComponent
+	#define AudioComponentInstanceDispose		CloseComponent
+	#define AudioComponentFindNext			FindNextComponent
 	#define AudioComponentInstance			ComponentInstance
 	#define AudioComponentDescription		ComponentDescription
 	#define	AudioComponent					Component
