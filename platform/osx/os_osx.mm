@@ -895,7 +895,7 @@ static void _mouseDownEvent(NSEvent *event, int index, int mask, bool pressed) {
 #ifdef MAC_OS_X_10_6_FEATURES
 		OS_OSX::singleton->last_warp = [[NSProcessInfo processInfo] systemUptime];
 #else
-		OS_OSX::singleton->last_warp = mach_absolute_time();
+		OS_OSX::singleton->last_warp = mach_absolute_time() / 1000000000.0;
 #endif
 		OS_OSX::WarpEvent ev;
 		ev.timestamp = OS_OSX::singleton->last_warp;
@@ -3634,7 +3634,7 @@ void OS_OSX::set_mouse_mode(MouseMode p_mode) {
 #ifdef MAC_OS_X_10_6_FEATURES
 	last_warp = [[NSProcessInfo processInfo] systemUptime];
 #else
-	last_warp = mach_absolute_time();
+	last_warp = mach_absolute_time() / 1000000000.0;
 #endif
 	ignore_warp = true;
 	warp_events.clear();
