@@ -34,17 +34,31 @@
 #include "camera_osx.h"
 #include "servers/camera/camera_feed.h"
 
+#ifdef MAC_OS_X_10_6_FEATURES
 #import <AVFoundation/AVFoundation.h>
+#else
+#import <QTKit/QTKit.h>
+#define AVCaptureDevice QTCaptureDevice
+#define AVCaptureDeviceInput QTCaptureDeviceInput
+#define AVCaptureVideoDataOutput QTCaptureDecompressedVideoOutput
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 // MyCaptureSession - This is a little helper class so we can capture our frames
 
+#ifdef MAC_OS_X_10_6_FEATURES
 @interface MyCaptureSession : AVCaptureSession <AVCaptureVideoDataOutputSampleBufferDelegate> {
+#else
+@interface MyCaptureSession : NSObject {
+#endif
 	Ref<CameraFeed> feed;
 	size_t width[2];
 	size_t height[2];
 	PoolVector<uint8_t> img_data[2];
 
+#ifndef MAC_OS_X_10_6_FEATURES
+	QTCaptureSession *session;
+#endif
 	AVCaptureDeviceInput *input;
 	AVCaptureVideoDataOutput *output;
 }
@@ -55,13 +69,14 @@
 
 - (id)initForFeed:(Ref<CameraFeed>)p_feed andDevice:(AVCaptureDevice *)p_device {
 	if (self = [super init]) {
-		NSError *error;
+		NSError *error = nil;
 		feed = p_feed;
 		width[0] = 0;
 		height[0] = 0;
 		width[1] = 0;
 		height[1] = 0;
 
+#ifdef MAC_OS_X_10_6_FEATURES
 		[self beginConfiguration];
 
 		input = [AVCaptureDeviceInput deviceInputWithDevice:p_device error:&error];
@@ -93,6 +108,36 @@
 		// kick off our session..
 		[self startRunning];
 	};
+#else
+		// Create capture session
+		session = [[QTCaptureSession alloc] init];
+
+		// Create device input
+		if ([p_device open:&error]) {
+			input = [[QTCaptureDeviceInput alloc] initWithDevice:p_device];
+			if ([session addInput:input error:&error]) {
+				// Create video output
+				output = [[QTCaptureDecompressedVideoOutput alloc] init];
+				[output setDelegate:self];
+
+				NSDictionary *pixelBufferAttributes = [NSDictionary dictionaryWithObjectsAndKeys:
+					[NSNumber numberWithInt:k422YpCbCr8CodecType], kCVPixelBufferPixelFormatTypeKey,
+					nil];
+				[output setPixelBufferAttributes:pixelBufferAttributes];
+
+				if ([session addOutput:output error:&error]) {
+					[session startRunning];
+				} else {
+					print_line("Couldn't add video output");
+				}
+			} else {
+				print_line("Couldn't add device input");
+			}
+		} else {
+			print_line("Couldn't open capture device");
+		} 
+	};
+#endif
 	return self;
 }
 
@@ -101,31 +146,51 @@
 	[self stopRunning];
 
 	// cleanup
+#ifdef MAC_OS_X_10_6_FEATURES
 	[self beginConfiguration];
+#else
+	[session stopRunning];
+#endif
 
 	// remove input
 	if (input) {
+#ifdef MAC_OS_X_10_6_FEATURES
 		[self removeInput:input];
+#else
+		[session removeInput:input];
+		[[input device] close];
+		[input release];
+#endif
 		// don't release this
 		input = NULL;
 	}
 
 	// free up our output
 	if (output) {
+#ifdef MAC_OS_X_10_6_FEATURES
 		[self removeOutput:output];
 		[output setSampleBufferDelegate:nil queue:NULL];
+#else
+		[session removeOutput:output];
+#endif
 		[output release];
 		output = NULL;
 	}
 
+#ifdef MAC_OS_X_10_6_FEATURES
 	[self commitConfiguration];
+#else
+	[session release];
+	session = nil;
+#endif
 }
 
 - (void)dealloc {
-	// bye bye
+	[self cleanup];
 	[super dealloc];
 }
 
+#ifdef MAC_OS_X_10_6_FEATURES
 - (void)captureOutput:(AVCaptureOutput *)captureOutput didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection *)connection {
 	// This gets called every time our camera has a new image for us to process.
 	// May need to investigate in a way to throttle this if we get more images then we're rendering frames..
@@ -193,6 +258,33 @@
 	// and unlock
 	CVPixelBufferUnlockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
 }
+#else
+- (void)captureOutput:(QTCaptureOutput *)captureOutput didOutputVideoFrame:(CVImageBufferRef)videoFrame withSampleBuffer:(QTSampleBuffer *)sampleBuffer fromConnection:(QTCaptureConnection *) connection {
+	CVPixelBufferLockBaseAddress(videoFrame, 0);
+
+	size_t sourceWidth = CVPixelBufferGetWidth(videoFrame);
+	size_t sourceHeight = CVPixelBufferGetHeight(videoFrame);
+	size_t bytesPerRow = CVPixelBufferGetBytesPerRow(videoFrame);
+	void *baseAddress = CVPixelBufferGetBaseAddress(videoFrame);
+
+	if (width[0] != sourceWidth || height[0] != sourceHeight) {
+		width[0] = sourceWidth;
+		height[0] = sourceHeight;
+		img_data[0].resize(sourceWidth * sourceHeight * 4);
+	}
+
+	PoolVector<uint8_t>::Write w = img_data[0].write();
+	memcpy(w.ptr(), baseAddress, sourceWidth * sourceHeight * 4);
+
+	Ref<Image> img;
+	img.instance();
+	img->create(sourceWidth, sourceHeight, 0, Image::FORMAT_RGBA8, img_data[0]);
+
+	feed->set_RGB_img(img);
+
+	CVPixelBufferUnlockBaseAddress(videoFrame, 0);
+}
+#endif
 
 @end
 
@@ -230,14 +322,21 @@ void CameraFeedOSX::set_device(AVCaptureDevice *p_device) {
 	[device retain];
 
 	// get some info
+#ifdef MAC_OS_X_10_6_FEATURES
 	NSString *device_name = p_device.localizedName;
 	name = String::utf8(device_name.UTF8String);
+#else
+	name = String::utf8([[device description] UTF8String]);
+#endif
+
 	position = CameraFeed::FEED_UNSPECIFIED;
+#ifdef MAC_OS_X_10_6_FEATURES
 	if ([p_device position] == AVCaptureDevicePositionBack) {
 		position = CameraFeed::FEED_BACK;
 	} else if ([p_device position] == AVCaptureDevicePositionFront) {
 		position = CameraFeed::FEED_FRONT;
 	};
+#endif
 };
 
 CameraFeedOSX::~CameraFeedOSX() {
@@ -291,17 +390,32 @@ void CameraFeedOSX::deactivate_feed() {
 - (id)initForServer:(CameraOSX *)p_server {
 	if (self = [super init]) {
 		camera_server = p_server;
-
+#ifdef MAC_OS_X_10_6_FEATURES
 		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(devices_changed:) name:AVCaptureDeviceWasConnectedNotification object:nil];
 		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(devices_changed:) name:AVCaptureDeviceWasDisconnectedNotification object:nil];
+#else
+		[[NSNotificationCenter defaultCenter] addObserver:self
+			selector:@selector(deviceConnected:)
+			name:QTCaptureDeviceWasConnectedNotification
+			object:nil];
+		[[NSNotificationCenter defaultCenter] addObserver:self
+			selector:@selector(deviceDisconnected:)
+			name:QTCaptureDeviceWasDisconnectedNotification
+			object:nil];
+
+#endif
 	};
 	return self;
 }
 
 - (void)dealloc {
 	// remove notifications
+#ifdef MAC_OS_X_10_6_FEATURES
 	[[NSNotificationCenter defaultCenter] removeObserver:self name:AVCaptureDeviceWasConnectedNotification object:nil];
 	[[NSNotificationCenter defaultCenter] removeObserver:self name:AVCaptureDeviceWasDisconnectedNotification object:nil];
+#else
+	[[NSNotificationCenter defaultCenter] removeObserver:self];
+#endif
 
 	[super dealloc];
 }
@@ -314,11 +428,10 @@ MyDeviceNotifications *device_notifications = nil;
 // CameraOSX - Subclass for our camera server on OSX
 
 void CameraOSX::update_feeds() {
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= 101500
-	AVCaptureDeviceDiscoverySession *session = [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:[NSArray arrayWithObjects:AVCaptureDeviceTypeExternalUnknown, AVCaptureDeviceTypeBuiltInWideAngleCamera, nil] mediaType:AVMediaTypeVideo position:AVCaptureDevicePositionUnspecified];
-	NSArray *devices = session.devices;
-#else
+#ifdef MAC_OS_X_10_6_FEATURES
 	NSArray *devices = [AVCaptureDevice devicesWithMediaType:AVMediaTypeVideo];
+#else
+	NSArray *devices = [QTCaptureDevice inputDevicesWithMediaType:QTMediaTypeVideo];
 #endif
 
 	// remove devices that are gone..
@@ -332,7 +445,9 @@ void CameraOSX::update_feeds() {
 	};
 
 	// add new devices..
-	for (AVCaptureDevice *device in devices) {
+	NSEnumerator *enumerator = [devices objectEnumerator];
+	QTCaptureDevice *device;
+	while((device = [enumerator nextObject])) {
 		bool found = false;
 		for (int i = 0; i < feeds.size() && !found; i++) {
 			Ref<CameraFeedOSX> feed = (Ref<CameraFeedOSX>)feeds[i];
