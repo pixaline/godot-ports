@@ -2534,8 +2534,13 @@ void OS_OSX::set_clipboard(const String &p_text) {
 	NSArray *copiedStringArray = [NSArray arrayWithObject:copiedString];
 
 	NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
+#ifdef MAC_OS_X_10_6_FEATURES
 	[pasteboard clearContents];
 	[pasteboard writeObjects:copiedStringArray];
+#else
+	[pasteboard declareTypes:[NSArray arrayWithObject:NSStringPboardType] owner:nil];
+	[pasteboard setString:copiedString forType:NSStringPboardType];
+#endif
 }
 
 String OS_OSX::get_clipboard() const {
