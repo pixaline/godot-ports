@@ -1063,7 +1063,7 @@ static const char *ReadString(std::string *s, const char *ptr, size_t len) {
 static bool ReadAttribute(std::string *name, std::string *type,
                           std::vector<unsigned char> *data, size_t *marker_size,
                           const char *marker, size_t size) {
-  size_t name_len = strnlen(marker, size);
+  size_t name_len = strlen(marker);
   if (name_len == size) {
     // String does not have a terminating character.
     return false;
@@ -1073,7 +1073,7 @@ static bool ReadAttribute(std::string *name, std::string *type,
   marker += name_len + 1;
   size -= name_len + 1;
 
-  size_t type_len = strnlen(marker, size);
+  size_t type_len = strlen(marker);
   if (type_len == size) {
     return false;
   }
