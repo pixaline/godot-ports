@@ -136,8 +136,15 @@ def configure(env):
             env["AS"] = mpprefix + "/libexec/llvm-" + mpclangver + "/bin/llvm-as"
             env.Append(CPPDEFINES=["__MACPORTS__"])  # hack to fix libvpx MM256_BROADCASTSI128_SI256 define
         else:
-            env["CC"] = env["cc"]
-            env["CXX"] = env["cxx"]
+            ccache_path = os.environ.get("CCACHE")
+            if ccache_path is None:
+                env["CC"] = str(env["cc"])
+                env["CXX"] = str(env["cxx"])
+            else:
+                # there aren't any ccache wrappers available for OS X cross-compile,
+                # to enable caching we need to prepend the path to the ccache binary
+                env["CC"] = ccache_path + " " + str(env["cc"])
+                env["CXX"] = ccache_path + " " + str(env["cxx"])
 
         detect_darwin_sdk_path("osx", env)
         env.Append(CCFLAGS=["-isysroot", "$MACOS_SDK_PATH"])
