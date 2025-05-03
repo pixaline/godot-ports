@@ -70,7 +70,9 @@ RasterizerScene *RasterizerGLES3::get_scene() {
 #define _EXT_DEBUG_OUTPUT 0x92E0
 
 #if defined(MINGW_ENABLED) || defined(_MSC_VER)
+#if (_WIN32_WINNT >= 0x0601)
 #define strcpy strcpy_s
+#endif
 #endif
 
 #ifdef GLAD_ENABLED

@@ -38,7 +38,9 @@
 #include <stdio.h>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#if defined(WINDOWS_ENABLED) && (_WIN32_WINNT >= 0x0601)
 #include <winsock2.h>
+#endif
 #include <ws2tcpip.h>
 #ifndef UWP_ENABLED
 #include <iphlpapi.h>
@@ -84,12 +86,18 @@ void IP_Unix::_resolve_hostname(List<IP_Address> &r_addresses, const String &p_h
 	memset(&hints, 0, sizeof(struct addrinfo));
 	if (p_type == TYPE_IPV4) {
 		hints.ai_family = AF_INET;
+#if defined(WINDOWS_ENABLED) && (_WIN32_WINNT >= 0x0601)
 	} else if (p_type == TYPE_IPV6) {
 		hints.ai_family = AF_INET6;
 		hints.ai_flags = 0;
+#endif
 	} else {
 		hints.ai_family = AF_UNSPEC;
+#if defined(WINDOWS_ENABLED) && (_WIN32_WINNT >= 0x0601)
 		hints.ai_flags = AI_ADDRCONFIG;
+#else
+		hints.ai_flags = 0;
+#endif
 	};
 	hints.ai_flags &= ~AI_NUMERICHOST;
 

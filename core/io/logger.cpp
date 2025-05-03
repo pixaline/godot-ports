@@ -48,7 +48,9 @@
 #endif
 
 #if defined(MINGW_ENABLED) || defined(_MSC_VER)
+#if (_WIN32_WINNT >= 0x0601)
 #define sprintf sprintf_s
+#endif
 #endif
 
 bool Logger::should_log(bool p_err) {

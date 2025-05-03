@@ -128,8 +128,12 @@ void RedirectStream(const char *p_file_name, const char *p_mode, FILE *p_cpp_str
 	if (h_existing != INVALID_HANDLE_VALUE) { // Redirect only if attached console have a valid handle.
 		const HANDLE h_cpp = reinterpret_cast<HANDLE>(_get_osfhandle(_fileno(p_cpp_stream)));
 		if (h_cpp == INVALID_HANDLE_VALUE) { // Redirect only if it's not already redirected to the pipe or file.
+#if (_WIN32_WINNT >= 0x0601)
 			FILE *fp = p_cpp_stream;
 			freopen_s(&fp, p_file_name, p_mode, p_cpp_stream); // Redirect stream.
+#else
+			freopen(p_file_name, p_mode, p_cpp_stream); // Redirect stream.
+#endif
 			setvbuf(p_cpp_stream, nullptr, _IONBF, 0); // Disable stream buffering.
 		}
 	}
@@ -857,7 +861,9 @@ LRESULT OS_Windows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 		case WM_RBUTTONDOWN:
 		case WM_RBUTTONUP:
 		case WM_MOUSEWHEEL:
+#if (_WIN32_WINNT >= 0x0601)
 		case WM_MOUSEHWHEEL:
+#endif
 		case WM_LBUTTONDBLCLK:
 		case WM_MBUTTONDBLCLK:
 		case WM_RBUTTONDBLCLK:
@@ -920,6 +926,7 @@ LRESULT OS_Windows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 					}
 					mb->set_factor(fabs((double)motion / (double)WHEEL_DELTA));
 				} break;
+#if (_WIN32_WINNT >= 0x0600) // Vista+
 				case WM_MOUSEHWHEEL: {
 					mb->set_pressed(true);
 					int motion = (short)HIWORD(wParam);
@@ -933,6 +940,7 @@ LRESULT OS_Windows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 					}
 					mb->set_factor(fabs((double)motion / (double)WHEEL_DELTA));
 				} break;
+#endif
 				case WM_XBUTTONDOWN: {
 					mb->set_pressed(true);
 					if (HIWORD(wParam) == XBUTTON1)
@@ -976,7 +984,11 @@ LRESULT OS_Windows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 				mb->set_position(Vector2(old_x, old_y));
 			}
 
-			if (uMsg != WM_MOUSEWHEEL && uMsg != WM_MOUSEHWHEEL) {
+			if (uMsg != WM_MOUSEWHEEL
+#if (_WIN32_WINNT >= 0x0601)
+				&& uMsg != WM_MOUSEHWHEEL
+#endif
+				) {
 				if (mb->is_pressed()) {
 					if (++pressrc > 0 && mouse_mode != MOUSE_MODE_CAPTURED)
 						SetCapture(hWnd);
@@ -1117,6 +1129,7 @@ LRESULT OS_Windows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 			// FIXME: Do something?
 		} break;
 
+#if (_WIN32_WINNT >= 0x0601)
 		case WM_TOUCH: {
 			BOOL bHandled = FALSE;
 			UINT cInputs = LOWORD(wParam);
@@ -1151,7 +1164,7 @@ LRESULT OS_Windows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 			};
 
 		} break;
-
+#endif
 		case WM_DEVICECHANGE: {
 			joypad->probe_joypads();
 		} break;
@@ -1664,7 +1677,9 @@ Error OS_Windows::initialize(const VideoMode &p_desired, int p_video_driver, int
 	tme.dwHoverTime = HOVER_DEFAULT;
 	TrackMouseEvent(&tme);
 
+#if (_WIN32_WINNT >= 0x0601)
 	RegisterTouchWindow(hWnd, 0);
+#endif
 
 	DragAcceptFiles(hWnd, true);
 
@@ -1689,6 +1704,7 @@ Error OS_Windows::initialize(const VideoMode &p_desired, int p_video_driver, int
 	set_ime_active(false);
 
 	if (!Engine::get_singleton()->is_editor_hint() && !OS::get_singleton()->is_in_low_processor_usage_mode()) {
+#if _WIN32_WINNT >= 0x0600
 		// Increase priority for projects that are not in low-processor mode (typically games)
 		// to reduce the risk of frame stuttering.
 		// This is not done for the editor to prevent importers or resource bakers
@@ -1698,6 +1714,7 @@ Error OS_Windows::initialize(const VideoMode &p_desired, int p_video_driver, int
 		HANDLE handle = AvSetMmThreadCharacteristics("Games", &index);
 		if (handle)
 			AvSetMmThreadPriority(handle, AVRT_PRIORITY_CRITICAL);
+#endif
 
 		// This is needed to make sure that background work does not starve the main thread.
 		// This is only setting priority of this thread, not the whole process.
@@ -2334,6 +2351,7 @@ bool OS_Windows::get_window_per_pixel_transparency_enabled() const {
 }
 
 void OS_Windows::set_window_per_pixel_transparency_enabled(bool p_enabled) {
+#if _WIN32_WINNT >= 0x0600
 	if (!is_layered_allowed())
 		return;
 	if (layered_window != p_enabled) {
@@ -2360,6 +2378,11 @@ void OS_Windows::set_window_per_pixel_transparency_enabled(bool p_enabled) {
 			DwmEnableBlurBehindWindow(hWnd, &bb);
 		}
 	}
+#else
+	if (p_enabled) {
+		OS::get_singleton()->alert("Per-pixel transparency not supported on Windows XP");
+	}
+#endif
 }
 
 void OS_Windows::set_borderless_window(bool p_borderless) {
@@ -3472,7 +3495,18 @@ String OS_Windows::keyboard_get_layout_language(int p_index) const {
 
 	wchar_t buf[LOCALE_NAME_MAX_LENGTH];
 	memset(buf, 0, LOCALE_NAME_MAX_LENGTH * sizeof(wchar_t));
+	
+#if (_WIN32_WINNT >= 0x0600) // Vista+
 	LCIDToLocaleName(MAKELCID(LOWORD(layouts[p_index]), SORT_DEFAULT), buf, LOCALE_NAME_MAX_LENGTH, 0);
+#else
+	// XP fallback using GetLocaleInfo
+	wchar_t locale_name[LOCALE_NAME_MAX_LENGTH];
+	GetLocaleInfoW(MAKELCID(LOWORD(layouts[p_index]), SORT_DEFAULT), 
+		LOCALE_SLANGUAGE, 
+		locale_name, 
+		LOCALE_NAME_MAX_LENGTH);
+	wcscpy(buf, locale_name);
+#endif
 
 	memfree(layouts);
 
@@ -3548,11 +3582,31 @@ String OS_Windows::keyboard_get_layout_name(int p_index) const {
 	if (ret == String()) {
 		wchar_t buf[LOCALE_NAME_MAX_LENGTH];
 		memset(buf, 0, LOCALE_NAME_MAX_LENGTH * sizeof(wchar_t));
-		LCIDToLocaleName(MAKELCID(LOWORD(layouts[p_index]), SORT_DEFAULT), buf, LOCALE_NAME_MAX_LENGTH, 0);
+
+#if (_WIN32_WINNT >= 0x0600) // Vista+
+	LCIDToLocaleName(MAKELCID(LOWORD(layouts[p_index]), SORT_DEFAULT), buf, LOCALE_NAME_MAX_LENGTH, 0);
+#else
+	// XP fallback using GetLocaleInfo
+	wchar_t locale_name[LOCALE_NAME_MAX_LENGTH];
+	GetLocaleInfoW(MAKELCID(LOWORD(layouts[p_index]), SORT_DEFAULT), 
+		LOCALE_SLANGUAGE, 
+		locale_name, 
+		LOCALE_NAME_MAX_LENGTH);
+	wcscpy(buf, locale_name);
+#endif
+
 
 		wchar_t name[1024];
 		memset(name, 0, 1024 * sizeof(wchar_t));
+		
+#if (_WIN32_WINNT >= 0x0600) // Vista+
 		GetLocaleInfoEx(buf, LOCALE_SLOCALIZEDDISPLAYNAME, (LPWSTR)&name, 1024);
+#else
+		GetLocaleInfoW(MAKELCID(LOWORD(layouts[p_index]), SORT_DEFAULT),
+			LOCALE_SLANGUAGE, 
+			(LPWSTR)&name, 
+			1024);
+#endif
 
 		ret = String(name);
 	}
@@ -3711,7 +3765,34 @@ String OS_Windows::get_system_dir(SystemDir p_dir, bool p_shared_storage) const 
 	}
 
 	PWSTR szPath;
+
+#if (_WIN32_WINNT >= 0x0600) // Vista+
 	HRESULT res = SHGetKnownFolderPath(id, 0, NULL, &szPath);
+#else
+	HRESULT res = E_FAIL;
+
+	int csidl = -1;
+	if (id == FOLDERID_Documents) {
+		csidl = CSIDL_PERSONAL;
+	} else if (id == FOLDERID_Pictures) {
+		csidl = CSIDL_MYPICTURES;
+	} else if (id == FOLDERID_Desktop) {
+		csidl = CSIDL_DESKTOPDIRECTORY;
+	} else if (id == FOLDERID_Videos) {
+		csidl = CSIDL_MYVIDEO;
+	} else if (id == FOLDERID_Music) {
+		csidl = CSIDL_MYMUSIC;
+	}
+	
+	if (csidl != -1) {
+		szPath = (wchar_t*)CoTaskMemAlloc(MAX_PATH * sizeof(wchar_t));
+		res = SHGetFolderPathW(NULL, csidl, NULL, 0, szPath);
+		if(!SUCCEEDED(res)){
+			CoTaskMemFree(szPath);
+		}
+	}
+#endif
+
 	ERR_FAIL_COND_V(res != S_OK, String());
 	String path = String(szPath).replace("\\", "/");
 	CoTaskMemFree(szPath);
@@ -3821,7 +3902,11 @@ void OS_Windows::process_and_drop_events() {
 Error OS_Windows::move_to_trash(const String &p_path) {
 	SHFILEOPSTRUCTW sf;
 	WCHAR *from = new WCHAR[p_path.length() + 2];
+#if (_WIN32_WINNT >= 0x0601)
 	wcscpy_s(from, p_path.length() + 1, p_path.c_str());
+#else
+	wcscpy(from, p_path.c_str());
+#endif
 	from[p_path.length() + 1] = 0;
 
 	sf.hwnd = hWnd;

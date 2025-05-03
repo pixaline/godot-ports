@@ -121,7 +121,7 @@ int mbedtls_platform_win32_vsnprintf(char *s, size_t n, const char *fmt, va_list
         return -1;
     }
 
-#if defined(_TRUNCATE)
+#if defined(_TRUNCATE) && (_WIN32_WINNT >= 0x0601)
     ret = vsnprintf_s(s, n, _TRUNCATE, fmt, arg);
 #else
     ret = vsnprintf(s, n, fmt, arg);

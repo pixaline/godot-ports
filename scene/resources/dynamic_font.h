@@ -40,6 +40,7 @@
 #include "core/pair.h"
 #include "scene/resources/font.h"
 
+#include <limits>
 #include <ft2build.h>
 #include FT_FREETYPE_H
 

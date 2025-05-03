@@ -81,7 +81,9 @@
 #endif
 
 #if defined(MINGW_ENABLED) || defined(_MSC_VER)
+#if (_WIN32_WINNT >= 0x0601)
 #define strcpy strcpy_s
+#endif
 #endif
 
 #ifdef CAN_DEBUG

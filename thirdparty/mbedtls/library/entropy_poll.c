@@ -74,9 +74,23 @@ int mbedtls_platform_entropy_poll(void *data, unsigned char *output, size_t len,
         return MBEDTLS_ERR_ENTROPY_SOURCE_FAILED;
     }
 
+#if _WIN32_WINNT >= 0x0600
     if (!BCRYPT_SUCCESS(BCryptGenRandom(NULL, output, len_as_ulong, BCRYPT_USE_SYSTEM_PREFERRED_RNG))) {
         return MBEDTLS_ERR_ENTROPY_SOURCE_FAILED;
     }
+#else
+    HCRYPTPROV provider;
+    if (!CryptAcquireContext(&provider, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
+        return MBEDTLS_ERR_ENTROPY_SOURCE_FAILED;
+    }
+
+    BOOL success = CryptGenRandom(provider, (DWORD)len, output);
+    CryptReleaseContext(provider, 0);
+
+    if (!success) {
+        return MBEDTLS_ERR_ENTROPY_SOURCE_FAILED;
+    }
+#endif
 
     *olen = len;
 

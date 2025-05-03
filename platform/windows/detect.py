@@ -61,9 +61,7 @@ def get_opts():
         ("mingw_prefix_32", "MinGW prefix (Win32)", mingw32),
         ("mingw_prefix_64", "MinGW prefix (Win64)", mingw64),
         # Targeted Windows version: 7 (and later), minimum supported version
-        # XP support dropped after EOL due to missing API for IPv6 and other issues
-        # Vista support dropped after EOL due to GH-10243
-        ("target_win_version", "Targeted Windows version, >= 0x0601 (Windows 7)", "0x0601"),
+        ("target_win_version", "Targeted Windows version, >= 0x0501 (Windows XP)", "0x0501"),
         BoolVariable("debug_symbols", "Add debugging symbols to release/release_debug builds", True),
         EnumVariable("windows_subsystem", "Windows subsystem", "gui", ("gui", "console")),
         BoolVariable("separate_debug_symbols", "Create a separate file containing debugging symbols", False),
@@ -271,10 +269,15 @@ def configure_msvc(env, manual_msvc_config):
         "dinput8",
         "dxguid",
         "imm32",
-        "bcrypt",
-        "Avrt",
-        "dwmapi",
     ]
+
+    if env["target_win_version"] != "0x501":
+        env.Append(LIBS=[
+             "bcrypt",
+             "Avrt",
+             "dwmapi",
+        ])
+
     env.Append(LINKFLAGS=[p + env["LIBSUFFIX"] for p in LIBS])
 
     if manual_msvc_config:

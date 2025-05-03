@@ -93,11 +93,13 @@ bool ContextGL_Windows::should_vsync_via_compositor() {
 
 	// Note: All Windows versions supported by Godot have a compositor.
 	// It can be disabled on earlier Windows versions.
-	BOOL dwm_enabled;
 
+#if _WIN32_WINNT >= 0x0600
+	BOOL dwm_enabled;
 	if (SUCCEEDED(DwmIsCompositionEnabled(&dwm_enabled))) {
 		return dwm_enabled;
 	}
+#endif
 
 	return false;
 }
@@ -108,9 +110,11 @@ void ContextGL_Windows::swap_buffers() {
 	if (use_vsync) {
 		bool vsync_via_compositor_now = should_vsync_via_compositor();
 
+#if _WIN32_WINNT >= 0x0600
 		if (vsync_via_compositor_now && wglGetSwapIntervalEXT() == 0) {
 			DwmFlush();
 		}
+#endif
 
 		if (vsync_via_compositor_now != vsync_via_compositor) {
 			// The previous frame had a different operating mode than this

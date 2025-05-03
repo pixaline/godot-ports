@@ -206,7 +206,7 @@ String str_format(const char *p_format, ...) {
 #endif
 #endif
 
-#if defined(MINGW_ENABLED)
+#if defined(MINGW_ENABLED) && (_WIN32_WINNT >= 0x0601)
 #define gd_vsnprintf(m_buffer, m_count, m_format, m_args_copy) vsnprintf_s(m_buffer, m_count, _TRUNCATE, m_format, m_args_copy)
 #define gd_vscprintf(m_format, m_args_copy) _vscprintf(m_format, m_args_copy)
 #else
