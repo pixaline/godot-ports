@@ -81,7 +81,7 @@ def configure(env):
     if "OSXCROSS_ROOT" in os.environ:
         env["osxcross"] = True
 
-    osxver = "10.7"
+    osxver = "10.5" if env["arch"] == "ppc" else "10.7"
     if "osx_version" in env:
         osxver = env["osx_version"]
     
@@ -115,6 +115,16 @@ def configure(env):
             env.Append(ASFLAGS=["-arch", "ppc"])
             env.Append(CCFLAGS=["-arch", "ppc"])
             env.Append(LINKFLAGS=["-arch", "ppc"])
+            # 32-bit PowerPC has no native 64-bit CAS instruction, so 8-byte
+            # std::atomic ops (used by core/os/memory.cpp) are lowered to
+            # libatomic calls instead of inline instructions.
+            env.Append(LIBS=["atomic"])
+            # PowerPC is big-endian. core/io/resource_format_binary.cpp only
+            # byte-swaps bulk PoolVector<int/real> array reads when this is
+            # defined; without it, packed scene/resource data (written
+            # little-endian, as virtually all real-world Godot files are)
+            # gets loaded raw, corrupting every int/float array value.
+            env.Append(CPPDEFINES=["BIG_ENDIAN_ENABLED"])
 
     cc_version = get_compiler_version(env) or [-1, -1]
     vanilla = is_vanilla_clang(env)
@@ -189,7 +199,9 @@ def configure(env):
             # ld: bl PPC branch out of range (33006356 max is +/-16MB): from __start (0x000024B4) to _main (0x01F7CAB0) in '__start'
             # Some OSXCross doens't point to the correct root location, fix it here?
             # env.Append(LINKFLAGS=["-Wl,-syslibroot "+root+"/target/SDK/MacOSX10.5.sdk"])
-            pass
+            # PowerPC is big-endian; see the matching native-build comment above.
+            env.Append(CPPDEFINES=["BIG_ENDIAN_ENABLED"])
+            env.Append(LIBS=["atomic"])
 
         if (env["arch"] == "i386") or (env["arch"] == "x86_64"):
             # Newer GCC+Older SDK might complain about SDK library stuff, just make it go away

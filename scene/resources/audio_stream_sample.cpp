@@ -411,6 +411,33 @@ AudioStreamPlaybackSample::AudioStreamPlaybackSample() {
 /////////////////////
 
 void AudioStreamSample::set_format(Format p_format) {
+#ifdef BIG_ENDIAN_ENABLED
+	// "data" (PoolVector<uint8_t>, i.e. VARIANT_RAW_ARRAY) is loaded raw by
+	// core/io/resource_format_binary.cpp -- unlike its typed Variant array
+	// cases (int/real/vector/...), raw byte arrays are never byte-swapped
+	// there, since a byte array has no defined element size at that layer.
+	// For FORMAT_16_BITS, each sample is a 2-byte value, so it needs
+	// swapping once we know the format.
+	//
+	// AudioStreamSample's ADD_PROPERTY order in _bind_methods() is "data"
+	// then "format", and resource deserialization sets properties in that
+	// same order, so set_data() has already stored this sample's raw
+	// (little-endian, as authored) bytes by the time this runs -- this
+	// swaps them in place, exactly once, on the transition into
+	// FORMAT_16_BITS with data already present. This deliberately does NOT
+	// fire for e.g. `AudioStreamSample.new()` followed by manually
+	// assigning already-native-order data via script in the same order,
+	// since that's indistinguishable from the deserialization case from
+	// here; that path is far less common than loading an imported sample.
+	if (p_format == FORMAT_16_BITS && format != FORMAT_16_BITS && data && data_bytes > 0) {
+		int16_t *samples = (int16_t *)((uint8_t *)data + DATA_PAD);
+		int count = data_bytes / 2;
+		for (int i = 0; i < count; i++) {
+			uint16_t v = (uint16_t)samples[i];
+			samples[i] = (int16_t)((v >> 8) | (v << 8));
+		}
+	}
+#endif
 	format = p_format;
 }
 

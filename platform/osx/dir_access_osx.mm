@@ -39,47 +39,70 @@
 
 String DirAccessOSX::fix_unicode_name(const char *p_name) const {
 	String fname;
+	// This runs on EditorFileSystem's project-scan thread as well as the
+	// main thread. Cocoa only maintains an autorelease pool for you on the
+	// main thread's run loop; background threads get none unless one is
+	// created explicitly, so without this every NSString created below
+	// (one per path component, for every file/dir in the project) leaks
+	// instead of being freed -- see ~/godot_output.txt's repeated
+	// "_NSAutoreleaseNoPool(): ... just leaking" during project load.
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	NSString *nsstr = [[NSString stringWithUTF8String:p_name] precomposedStringWithCanonicalMapping];
 
 	fname.parse_utf8([nsstr UTF8String]);
+	[pool release];
 
 	return fname;
 }
 
 int DirAccessOSX::get_drive_count() {
+	// See fix_unicode_name() above: DirAccess methods aren't guaranteed to
+	// run on the main thread (EditorFileSystem's scan thread calls into
+	// this class too), so any Cocoa object created here needs an explicit
+	// pool rather than relying on the main run loop's.
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+	int count;
 #ifdef MAC_OS_X_10_6_FEATURES
 	NSArray *res_keys = [NSArray arrayWithObjects:NSURLVolumeURLKey, NSURLIsSystemImmutableKey, nil];
 	NSArray *vols = [[NSFileManager defaultManager] mountedVolumeURLsIncludingResourceValuesForKeys:res_keys options:NSVolumeEnumerationSkipHiddenVolumes];
-	return [vols count];
+	count = [vols count];
 #else
 	NSArray *vols = [[NSWorkspace sharedWorkspace] mountedLocalVolumePaths];
-	return [vols count];
+	count = [vols count];
 #endif
+	[pool release];
+	return count;
 }
 
 String DirAccessOSX::get_drive(int p_drive) {
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+	String volname;
 #ifdef MAC_OS_X_10_6_FEATURES
 	NSArray *res_keys = [NSArray arrayWithObjects:NSURLVolumeURLKey, NSURLIsSystemImmutableKey, nil];
 	NSArray *vols = [[NSFileManager defaultManager] mountedVolumeURLsIncludingResourceValuesForKeys:res_keys options:NSVolumeEnumerationSkipHiddenVolumes];
 	int count = [vols count];
 
-	ERR_FAIL_INDEX_V(p_drive, count, "");
+	if (p_drive < 0 || p_drive >= count) {
+		[pool release];
+		ERR_FAIL_INDEX_V(p_drive, count, "");
+	}
 
-	String volname;
 	NSString *path = [[vols objectAtIndex:p_drive] path];
 	volname.parse_utf8([path UTF8String]);
-	return volname;
 #else
 	NSArray *vols = [[NSWorkspace sharedWorkspace] mountedLocalVolumePaths];
 	int count = [vols count];
 
-	ERR_FAIL_INDEX_V(p_drive, count, "");
+	if (p_drive < 0 || p_drive >= count) {
+		[pool release];
+		ERR_FAIL_INDEX_V(p_drive, count, "");
+	}
 
-	String volname;
 	NSString *path = [vols objectAtIndex:p_drive];
 	volname.parse_utf8([path UTF8String]);
-	return volname;
 #endif
+	[pool release];
+	return volname;
 }
 
 bool DirAccessOSX::is_hidden(const String &p_name) {

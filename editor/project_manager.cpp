@@ -54,7 +54,10 @@
 #include "servers/navigation_server.h"
 
 // Used to test for GLES3 support.
-#ifndef SERVER_ENABLED
+// Not available on ppc: drivers/SCsub skips building the GLES3 driver there
+// (no GLES3-capable GPU driver on this hardware), so its headers/shaders
+// are never generated.
+#if !defined(SERVER_ENABLED) && !defined(__ppc__)
 #include "drivers/gles3/rasterizer_gles3.h"
 #endif
 

@@ -1280,8 +1280,7 @@ void TileMap::_set_tile_data(const PoolVector<int> &p_data) {
 		SWAP(local[1], local[2]);
 		SWAP(local[4], local[7]);
 		SWAP(local[5], local[6]);
-		//TODO: ask someone to check this...
-		if (FORMAT == FORMAT_2) {
+		if (format == FORMAT_2) {
 			SWAP(local[8], local[11]);
 			SWAP(local[9], local[10]);
 		}

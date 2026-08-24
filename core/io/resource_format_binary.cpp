@@ -1066,11 +1066,12 @@ Error ResourceFormatLoaderBinary::rename_dependencies(const String &p_path, cons
 	bool use_real64 = f->get_32();
 
 	f->set_endian_swap(big_endian != 0); //read big endian if saved as big endian
-#ifdef BIG_ENDIAN_ENABLED
-	fw->store_32(!big_endian);
-#else
+	// This function doesn't re-encode the resource payload: everything past
+	// the header (see "rest of file" below) is copied through as raw bytes,
+	// so the output's actual on-disk byte order is unchanged from the input.
+	// The header must therefore keep declaring the source file's true
+	// big_endian value, not its opposite.
 	fw->store_32(big_endian);
-#endif
 	fw->set_endian_swap(big_endian != 0);
 	fw->store_32(use_real64); //use real64
 
