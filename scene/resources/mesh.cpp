@@ -717,6 +717,204 @@ Vector<Ref<Shape>> Mesh::convex_decompose(int p_max_convex_hulls) const {
 Mesh::Mesh() {
 }
 
+#ifdef BIG_ENDIAN_ENABLED
+// array_data/array_index_data are stored as opaque raw bytes (VARIANT_RAW_ARRAY
+// in core/io/resource_format_binary.cpp), which is never byte-swapped there
+// -- unlike the typed PoolVector<int/real/...> array cases, which already
+// are -- since a raw byte array has no defined element size at that layer.
+// The actual per-vertex element sizes depend on this surface's
+// ARRAY_FORMAT/ARRAY_COMPRESS_* flags, so the swap has to happen here, where
+// the format is known. This mirrors the authoritative layout computed in
+// RasterizerStorageGLES2::mesh_add_surface() (drivers/gles2/rasterizer_storage_gles2.cpp);
+// keep the two in sync if that layout ever changes.
+static void _big_endian_swap_mesh_array(PoolVector<uint8_t> &p_array, uint32_t p_format, int p_vertex_count) {
+	if (p_vertex_count <= 0 || p_array.size() == 0) {
+		return;
+	}
+
+	struct SwapField {
+		int offset;
+		int count;
+	};
+	Vector<SwapField> swap2; // 2-byte elements: GL_SHORT / GL_UNSIGNED_SHORT / half-float
+	Vector<SwapField> swap4; // 4-byte elements: GL_FLOAT
+
+	bool octahedral = (p_format & Mesh::ARRAY_FLAG_USE_OCTAHEDRAL_COMPRESSION) != 0;
+	int stride = 0;
+
+	// ARRAY_VERTEX (mandatory)
+	{
+		bool vertex_2d = (p_format & Mesh::ARRAY_FLAG_USE_2D_VERTICES) != 0;
+		bool compressed = (p_format & Mesh::ARRAY_COMPRESS_VERTEX) != 0;
+		int size = vertex_2d ? 2 : (compressed ? 4 : 3);
+		SwapField f = { stride, size };
+		if (compressed) {
+			swap2.push_back(f);
+			stride += size * 2;
+		} else {
+			swap4.push_back(f);
+			stride += size * 4;
+		}
+	}
+
+	int normal_offset = -1;
+
+	if (p_format & Mesh::ARRAY_FORMAT_NORMAL) {
+		normal_offset = stride;
+		if (octahedral) {
+			// Provisional: 2x GL_SHORT (oct32). May be downgraded to
+			// GL_BYTE x4 below if tangent packs into the same region.
+			SwapField f = { stride, 2 };
+			swap2.push_back(f);
+			stride += 4;
+		} else if (p_format & Mesh::ARRAY_COMPRESS_NORMAL) {
+			// GL_BYTE xyz + 1 pad byte -- 1-byte elements, no swap needed.
+			stride += 4;
+		} else {
+			SwapField f = { stride, 3 };
+			swap4.push_back(f);
+			stride += 12;
+		}
+	}
+
+	if (p_format & Mesh::ARRAY_FORMAT_TANGENT) {
+		if (octahedral) {
+			if ((p_format & Mesh::ARRAY_COMPRESS_TANGENT) && (p_format & Mesh::ARRAY_COMPRESS_NORMAL)) {
+				// Repacked into the normal's existing 4-byte region as
+				// GL_BYTE x4 (oct16 for both normal.xy and tangent.zw)
+				// -- 1-byte elements, no swap. Undo the provisional
+				// 2-byte swap entry added for the normal above.
+				if (swap2.size() > 0 && swap2[swap2.size() - 1].offset == normal_offset) {
+					swap2.resize(swap2.size() - 1);
+				}
+			} else {
+				// Tangent gets its own oct32 region (2x GL_SHORT).
+				SwapField f = { stride, 2 };
+				swap2.push_back(f);
+				stride += 4;
+			}
+		} else if (p_format & Mesh::ARRAY_COMPRESS_TANGENT) {
+			// GL_BYTE x4 -- no swap needed.
+			stride += 4;
+		} else {
+			SwapField f = { stride, 4 };
+			swap4.push_back(f);
+			stride += 16;
+		}
+	}
+
+	if (p_format & Mesh::ARRAY_FORMAT_COLOR) {
+		if (p_format & Mesh::ARRAY_COMPRESS_COLOR) {
+			// GL_UNSIGNED_BYTE x4 -- no swap needed.
+			stride += 4;
+		} else {
+			SwapField f = { stride, 4 };
+			swap4.push_back(f);
+			stride += 16;
+		}
+	}
+
+	if (p_format & Mesh::ARRAY_FORMAT_TEX_UV) {
+		if (p_format & Mesh::ARRAY_COMPRESS_TEX_UV) {
+			SwapField f = { stride, 2 };
+			swap2.push_back(f);
+			stride += 4;
+		} else {
+			SwapField f = { stride, 2 };
+			swap4.push_back(f);
+			stride += 8;
+		}
+	}
+
+	if (p_format & Mesh::ARRAY_FORMAT_TEX_UV2) {
+		if (p_format & Mesh::ARRAY_COMPRESS_TEX_UV2) {
+			SwapField f = { stride, 2 };
+			swap2.push_back(f);
+			stride += 4;
+		} else {
+			SwapField f = { stride, 2 };
+			swap4.push_back(f);
+			stride += 8;
+		}
+	}
+
+	if (p_format & Mesh::ARRAY_FORMAT_BONES) {
+		if (p_format & Mesh::ARRAY_FLAG_USE_16_BIT_BONES) {
+			SwapField f = { stride, 4 };
+			swap2.push_back(f);
+			stride += 8;
+		} else {
+			// GL_UNSIGNED_BYTE x4 -- no swap needed.
+			stride += 4;
+		}
+	}
+
+	if (p_format & Mesh::ARRAY_FORMAT_WEIGHTS) {
+		if (p_format & Mesh::ARRAY_COMPRESS_WEIGHTS) {
+			SwapField f = { stride, 4 };
+			swap2.push_back(f);
+			stride += 8;
+		} else {
+			SwapField f = { stride, 4 };
+			swap4.push_back(f);
+			stride += 16;
+		}
+	}
+
+	if (stride == 0 || p_array.size() % stride != 0) {
+		// Unrecognized layout (e.g. the legacy-format upgrade path a few
+		// lines below in mesh_add_surface() handles a stride mismatch by
+		// converting on the fly) -- leave the bytes alone rather than risk
+		// corrupting data we don't understand the shape of.
+		WARN_PRINT("Could not determine a big-endian byte-swap layout for this mesh surface; geometry may render incorrectly.");
+		return;
+	}
+
+	PoolVector<uint8_t>::Write w = p_array.write();
+	uint8_t *base = w.ptr();
+
+	for (int v = 0; v < p_vertex_count; v++) {
+		uint8_t *vtx = base + v * stride;
+		for (int i = 0; i < swap2.size(); i++) {
+			uint16_t *p = (uint16_t *)(vtx + swap2[i].offset);
+			for (int j = 0; j < swap2[i].count; j++) {
+				p[j] = (uint16_t)((p[j] >> 8) | (p[j] << 8));
+			}
+		}
+		for (int i = 0; i < swap4.size(); i++) {
+			uint32_t *p = (uint32_t *)(vtx + swap4[i].offset);
+			for (int j = 0; j < swap4[i].count; j++) {
+				p[j] = BSWAP32(p[j]);
+			}
+		}
+	}
+}
+
+// Index width mirrors ARRAY_INDEX handling in mesh_add_surface(): 32-bit
+// once the surface has 65536 or more vertices, 16-bit otherwise.
+static void _big_endian_swap_index_array(PoolVector<uint8_t> &p_index_array, int p_vertex_count) {
+	if (p_index_array.size() == 0) {
+		return;
+	}
+
+	PoolVector<uint8_t>::Write w = p_index_array.write();
+
+	if (p_vertex_count >= (1 << 16)) {
+		uint32_t *p = (uint32_t *)w.ptr();
+		int count = p_index_array.size() / 4;
+		for (int i = 0; i < count; i++) {
+			p[i] = BSWAP32(p[i]);
+		}
+	} else {
+		uint16_t *p = (uint16_t *)w.ptr();
+		int count = p_index_array.size() / 2;
+		for (int i = 0; i < count; i++) {
+			p[i] = (uint16_t)((p[i] >> 8) | (p[i] << 8));
+		}
+	}
+}
+#endif // BIG_ENDIAN_ENABLED
+
 bool ArrayMesh::_set(const StringName &p_name, const Variant &p_value) {
 	String sname = p_name;
 
@@ -793,6 +991,12 @@ bool ArrayMesh::_set(const StringName &p_name, const Variant &p_value) {
 				Array blend_shape_data = d["blend_shape_data"];
 				for (int i = 0; i < blend_shape_data.size(); i++) {
 					PoolVector<uint8_t> shape = blend_shape_data[i];
+#ifdef BIG_ENDIAN_ENABLED
+					// Blend shapes share the base surface's per-vertex
+					// layout (see the array_size check this mirrors in
+					// RasterizerStorageGLES2::mesh_add_surface()).
+					_big_endian_swap_mesh_array(shape, format, vertex_count);
+#endif
 					blend_shapes.push_back(shape);
 				}
 			}
@@ -809,6 +1013,11 @@ bool ArrayMesh::_set(const StringName &p_name, const Variant &p_value) {
 					bone_aabb.write[i] = baabb[i];
 				}
 			}
+
+#ifdef BIG_ENDIAN_ENABLED
+			_big_endian_swap_mesh_array(array_data, format, vertex_count);
+			_big_endian_swap_index_array(array_index_data, vertex_count);
+#endif
 
 			add_surface(format, PrimitiveType(primitive), array_data, vertex_count, array_index_data, index_count, aabb, blend_shapes, bone_aabb);
 		} else {

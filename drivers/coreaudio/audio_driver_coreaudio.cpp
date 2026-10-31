@@ -123,6 +123,16 @@ Error AudioDriverCoreAudio::init() {
 	memset(&strdesc, 0, sizeof(strdesc));
 	strdesc.mFormatID = kAudioFormatLinearPCM;
 	strdesc.mFormatFlags = kLinearPCMFormatFlagIsSignedInteger | kLinearPCMFormatFlagIsPacked;
+#ifdef BIG_ENDIAN_ENABLED
+	// The int16_t samples output_callback() writes (ad->samples_in[j] >> 16,
+	// stored via plain native-endian assignment) are in this CPU's native
+	// byte order -- big-endian on PPC. kLinearPCMFormatFlagIsBigEndian's
+	// *absence* tells CoreAudio the stream is little-endian, which is only
+	// harmless-by-coincidence on little-endian hosts; on this big-endian
+	// port it mislabels every sample, which the HAL/driver then has no way
+	// to correct before handing it to the hardware.
+	strdesc.mFormatFlags |= kLinearPCMFormatFlagIsBigEndian;
+#endif
 	strdesc.mChannelsPerFrame = channels;
 	strdesc.mSampleRate = mix_rate;
 	strdesc.mFramesPerPacket = 1;
@@ -413,6 +423,12 @@ Error AudioDriverCoreAudio::capture_init() {
 	memset(&strdesc, 0, sizeof(strdesc));
 	strdesc.mFormatID = kAudioFormatLinearPCM;
 	strdesc.mFormatFlags = kLinearPCMFormatFlagIsSignedInteger | kLinearPCMFormatFlagIsPacked;
+#ifdef BIG_ENDIAN_ENABLED
+	// Symmetric with the same fix in init() above -- input_callback() also
+	// writes/reads native int16_t samples, so this stream is native (big)
+	// endian on this port too.
+	strdesc.mFormatFlags |= kLinearPCMFormatFlagIsBigEndian;
+#endif
 	strdesc.mChannelsPerFrame = capture_channels;
 	strdesc.mSampleRate = mix_rate;
 	strdesc.mFramesPerPacket = 1;

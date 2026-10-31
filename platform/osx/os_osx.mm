@@ -157,6 +157,27 @@ static NSCursor *cursorFromSelector(SEL selector, SEL fallback = nil) {
 			k->set_echo([event isARepeat]);
 
 			OS_OSX::singleton->push_input(k);
+		} else if ([event modifierFlags] & NSEventModifierFlagCommand) {
+			// AppKit's default handling of a Command-key keyDown tries to
+			// resolve it as a menu-bar/Services key equivalent (see
+			// -[NSApplication performKeyEquivalent:]) *before* it is ever
+			// delivered to the key window's regular keyDown: handler. This
+			// port's editor UI -- including all its own keyboard shortcuts
+			// (Save, Undo, etc.) -- is drawn entirely by Godot itself, not as
+			// real NSMenuItems, so nothing claims most Command-key combos;
+			// left alone, AppKit just beeps and silently drops the event
+			// instead of ever reaching keyDown:, so none of the engine's own
+			// Command-modified shortcuts work at all (confirmed live: the
+			// event reaches here but never reaches keyDown: -- see issue
+			// #11). Give the real native menu (used here only for required
+			// items like Quit/Hide) first refusal via performKeyEquivalent:,
+			// then forward anything it doesn't claim straight into the key
+			// window's regular keyDown: instead of letting [super sendEvent:]
+			// swallow it.
+			if (![self performKeyEquivalent:event]) {
+				[[[self keyWindow] contentView] keyDown:event];
+			}
+			return;
 		}
 	}
 
